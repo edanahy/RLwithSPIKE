@@ -94,4 +94,12 @@ Developed at the [Tufts Center for Engineering Education and Outreach (CEEO)](ht
 - Smart Walker: first developed by Ziyi Zhang, around 2021.
 - Both were adapted for the ML workshop in October 2024. In 2026 they were cleaned up and connected to the web dashboard.
 
+## License
+
+This project is released under the [MIT License](LICENSE). You are welcome to use, adapt and share it, in class or anywhere else. Copies or adapted versions must keep the copyright notice and the license text.
+
+If you use these activities or build on them, please credit the project. For example:
+
+> Based on *Reinforcement Learning with LEGO SPIKE Prime* by Ethan Danahy and the Tufts Center for Engineering Education and Outreach (CEEO), https://github.com/edanahy/RLwithSPIKE
+
 LEGO® and SPIKE™ are trademarks of the LEGO Group, which does not sponsor or endorse this project.
