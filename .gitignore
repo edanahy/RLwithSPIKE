@@ -1,0 +1,37 @@
+# Original source files and reference docs (not published)
+orig/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editors and IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Node
+node_modules/
+
+# Claude Code local settings
+.claude/
+
+# Logs saved from the dashboard ("Save log")
+spike-rl-*.txt
+*.log

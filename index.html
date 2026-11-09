@@ -1,0 +1,2571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RL with SPIKE Prime</title>
+<meta name="description" content="Live dashboard for the 1D Color Search and Smart Walker reinforcement learning activities on LEGO Education SPIKE Prime.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='10' width='28' height='18' rx='3' fill='%232a78d6'/%3E%3Crect x='6' y='5' width='8' height='6' rx='2' fill='%232a78d6'/%3E%3Crect x='18' y='5' width='8' height='6' rx='2' fill='%232a78d6'/%3E%3C/svg%3E">
+<style>
+/* ===================================================================
+   Theme tokens (light / dark)
+   =================================================================== */
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --surface-2: #f3f2ee; --surface-3: #e9e8e3;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7;
+  --border: rgba(11,11,11,.10); --border-2: rgba(11,11,11,.20);
+  --train: #2a78d6; --test: #eb6834;
+  --pos: #2a78d6; --pos-strong: #184f95; --neg: #e34948; --neg-strong: #a3302f; --mid: #f0efec;
+  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+  --good-text: #006300; --critical-text: #b3261e;
+  --accent: #2a78d6;
+  --shadow: 0 1px 2px rgba(0,0,0,.04), 0 6px 20px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321; --surface-3: #2e2e2b;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835;
+    --border: rgba(255,255,255,.10); --border-2: rgba(255,255,255,.22);
+    --train: #3987e5; --test: #d95926;
+    --pos: #3987e5; --pos-strong: #86b6ef; --neg: #e66767; --neg-strong: #f2a3a3; --mid: #383835;
+    --good-text: #0ca30c; --critical-text: #f08080;
+    --accent: #3987e5;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321; --surface-3: #2e2e2b;
+  --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835;
+  --border: rgba(255,255,255,.10); --border-2: rgba(255,255,255,.22);
+  --train: #3987e5; --test: #d95926;
+  --pos: #3987e5; --pos-strong: #86b6ef; --neg: #e66767; --neg-strong: #f2a3a3; --mid: #383835;
+  --good-text: #0ca30c; --critical-text: #f08080;
+  --accent: #3987e5;
+  --shadow: none;
+}
+
+/* ===================================================================
+   Base layout
+   =================================================================== */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--page); color: var(--ink);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+button, select, input { font: inherit; color: inherit; }
+a { color: var(--accent); }
+.muted { color: var(--muted); }
+.ink2 { color: var(--ink-2); }
+.num { font-variant-numeric: tabular-nums; }
+.hidden { display: none !important; }
+
+header.top {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+  padding: 10px 20px; background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.brand { display: flex; align-items: center; gap: 10px; margin-right: auto; min-width: 0; }
+.brand svg { flex: none; }
+.brand h1 { font-size: 17px; margin: 0; font-weight: 650; letter-spacing: -.01em; white-space: nowrap; }
+.brand .sub { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+
+.seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 3px; }
+.seg button {
+  border: 0; background: transparent; padding: 6px 12px; border-radius: 7px; cursor: pointer;
+  color: var(--ink-2); font-weight: 550; font-size: 14px; white-space: nowrap;
+}
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--border), 0 1px 2px rgba(0,0,0,.06); }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer; white-space: nowrap;
+  border: 1px solid var(--border-2); background: var(--surface); padding: 7px 12px; border-radius: 9px;
+  font-size: 14px; font-weight: 550; color: var(--ink);
+}
+.btn:hover:not(:disabled) { background: var(--surface-2); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.06); background: var(--accent); }
+.btn.small { padding: 4px 9px; font-size: 13px; border-radius: 7px; }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn svg { flex: none; }
+.conn { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pill {
+  display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--border); font-size: 13px; color: var(--ink-2); white-space: nowrap;
+}
+.pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.pill.on .dot { background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 25%, transparent); }
+.pill.demo .dot { background: var(--test); }
+
+main { max-width: 1340px; margin: 0 auto; padding: 16px 20px 48px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 16px 18px; min-width: 0; box-shadow: var(--shadow);
+}
+.card h2 { font-size: 15.5px; margin: 0; font-weight: 650; letter-spacing: -.005em; }
+.card .sub { font-size: 13px; color: var(--muted); margin: 2px 0 10px; }
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.note { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
+.grid { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+.g-search { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); }
+.g-walker-top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); }
+.g-walker-mid { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+.stack { display: grid; gap: 16px; align-content: start; min-width: 0; }
+@media (max-width: 1080px) {
+  .g-walker-top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .g-walker-top > :last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 860px) {
+  .g-search, .g-walker-top, .g-walker-mid { grid-template-columns: minmax(0, 1fr); }
+  header.top { padding: 10px 16px; }
+  main { padding: 12px 16px 40px; }
+  .brand .sub { display: none; }
+}
+
+/* ---- "Now" strip ---- */
+.now { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: center; }
+.now .mode { display: grid; gap: 6px; justify-items: start; min-width: 170px; }
+.badge {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 8px;
+  font-weight: 700; font-size: 13px; letter-spacing: .04em; text-transform: uppercase;
+  background: var(--surface-3); color: var(--ink-2);
+}
+.badge.train { background: var(--train); color: #fff; }
+.badge.test { background: var(--test); color: #fff; }
+.now .detail { font-size: 13.5px; color: var(--ink-2); }
+.now .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 650; }
+.now .prompt { font-size: clamp(17px, 2.1vw, 23px); font-weight: 600; line-height: 1.3; letter-spacing: -.01em; margin-top: 2px; }
+@media (max-width: 640px) {
+  .now { grid-template-columns: minmax(0, 1fr); }
+  .brand h1 { white-space: normal; font-size: 15.5px; }
+  .tiles { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .tile .t-value { font-size: 24px; }
+  .eq td:last-child { white-space: normal; }
+  .qtable td { padding: 6px 4px; font-size: 13px; }
+  .card { padding: 14px; }
+}
+.prompt-flash { animation: promptflash 1.2s ease; }
+@keyframes promptflash { 0% { background: color-mix(in srgb, var(--accent) 18%, transparent); } 100% { background: transparent; } }
+
+.banner {
+  display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: 12px;
+  background: color-mix(in srgb, var(--critical) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--critical) 35%, transparent);
+}
+.banner b { color: var(--critical-text); }
+.banner.info { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+.banner.info b { color: var(--ink); }
+
+/* ---- Demo bar ---- */
+.demobar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 16px;
+  border: 1px dashed color-mix(in srgb, var(--test) 60%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--test) 6%, var(--surface)); }
+.demobar .title { font-weight: 650; }
+.demobar .spacer { flex: 1; }
+.hubbtn { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ---- Tiles ---- */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 13px 16px; box-shadow: var(--shadow); min-width: 0; }
+.tile .t-label { font-size: 13px; color: var(--ink-2); }
+.tile .t-value { font-size: 28px; font-weight: 650; letter-spacing: -.02em; margin-top: 2px; line-height: 1.15; }
+.tile .t-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.meter { height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--accent) 18%, var(--surface-2)); margin-top: 8px; overflow: hidden; }
+.meter > i { display: block; height: 100%; border-radius: 4px; background: var(--accent); transition: width .4s ease; }
+
+/* ---- Q-tables ---- */
+.qtable { border-collapse: separate; border-spacing: 2px; width: 100%; font-variant-numeric: tabular-nums; }
+.qtable th { font-size: 12.5px; font-weight: 600; color: var(--ink-2); padding: 4px 6px; text-align: center; white-space: nowrap; }
+.qtable th.rowh { text-align: left; }
+.qtable td { padding: 7px 6px; text-align: center; border-radius: 6px; font-size: 14px; position: relative; }
+.qtable td.rowh { text-align: left; background: transparent; padding-left: 2px; }
+.qtable td.best { box-shadow: inset 0 0 0 2px var(--ink); font-weight: 700; }
+.qtable tr.current td.rowh { font-weight: 700; }
+.qtable tr.current td.rowh::before { content: "▶"; color: var(--accent); margin-right: 5px; font-size: 11px; }
+.qtable td.flash::after { content: ""; position: absolute; inset: -3px; border-radius: 8px; box-shadow: 0 0 0 3px var(--accent); animation: cellflash 1.6s ease forwards; pointer-events: none; }
+@keyframes cellflash { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
+.swatch { display: inline-block; width: 14px; height: 14px; border-radius: 4px; vertical-align: -2px; margin-right: 7px; box-shadow: inset 0 0 0 1px var(--border-2); }
+.qtable.wide td { padding: 6px 3px; font-size: 12px; min-width: 38px; }
+.qtable.wide th { font-size: 11px; padding: 3px 2px; line-height: 1.15; }
+.qtable.wide td.rowh { font-size: 12.5px; min-width: 150px; }
+.qtable td.bestcol { text-align: left; font-size: 12.5px; white-space: nowrap; padding-left: 10px; color: var(--ink-2); }
+.scroll-x { overflow-x: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; font-size: 12.5px; color: var(--ink-2); margin-top: 10px; }
+.legend .key { display: inline-flex; align-items: center; gap: 6px; }
+.legend .k-rect { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.legend .k-line { width: 16px; height: 2px; border-radius: 1px; display: inline-block; }
+.legend .ramp { width: 120px; height: 10px; border-radius: 3px; display: inline-block; }
+
+/* ---- Explainer (last learning step) ---- */
+.explain { display: grid; gap: 10px; font-size: 14.5px; }
+.explain .what { line-height: 1.5; }
+.explain .tag { display: inline-block; padding: 1px 7px; border-radius: 6px; font-size: 12px; font-weight: 650; vertical-align: 1px; }
+.tag.explore { background: color-mix(in srgb, var(--test) 18%, transparent); color: var(--ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--test) 50%, transparent); }
+.tag.exploit { background: color-mix(in srgb, var(--train) 14%, transparent); color: var(--ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--train) 45%, transparent); }
+.tag.tie { background: var(--surface-3); color: var(--ink-2); }
+.eq { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 14px; }
+.eq td { padding: 6px 4px; border-top: 1px solid var(--grid); vertical-align: top; }
+.eq td:first-child { color: var(--ink-2); width: 46%; padding-right: 10px; }
+.eq td:last-child { text-align: right; white-space: nowrap; }
+.eq b { font-size: 15px; }
+.eq small { display: block; color: var(--muted); font-size: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px 2px 4px; border-radius: 7px; background: var(--surface-2); border: 1px solid var(--border); font-size: 13px; white-space: nowrap; }
+.chip .swatch { margin-right: 0; width: 13px; height: 13px; }
+
+/* ---- Run path chips (color search) ---- */
+.path { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; min-height: 30px; margin-top: 6px; }
+.path .arrow { color: var(--muted); font-size: 13px; display: inline-flex; align-items: center; gap: 2px; }
+.path .arrow .q { color: var(--ink); background: color-mix(in srgb, var(--test) 25%, transparent); border-radius: 4px; padding: 0 3px; font-size: 11px; font-weight: 700; }
+.path .rw { color: var(--muted); font-size: 11.5px; margin-left: 2px; }
+.result { display: inline-flex; align-items: center; gap: 5px; font-weight: 650; padding: 2px 9px; border-radius: 7px; font-size: 13px; }
+.result.goal { color: var(--good-text); background: color-mix(in srgb, var(--good) 12%, transparent); }
+.result.boundary { color: var(--critical-text); background: color-mix(in srgb, var(--critical) 12%, transparent); }
+.result.other { color: var(--ink-2); background: var(--surface-3); }
+.status-line { font-size: 14px; color: var(--ink-2); min-height: 22px; margin-top: 4px; }
+
+/* ---- SVG illustration bits ---- */
+svg { display: block; }
+.track-wrap, .dial-wrap { position: relative; }
+.placeholder-note {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+  padding: 20px; font-size: 15px; color: var(--ink-2); pointer-events: none;
+}
+.placeholder-note span { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; box-shadow: var(--shadow); max-width: 340px; }
+.is-placeholder svg { opacity: .35; }
+#arm { transition: transform .45s cubic-bezier(.3,.7,.3,1); }
+#arm.sweeping { transition: transform 1.6s linear; }
+.robot-rot { transition: transform .45s ease; }
+.brick-hit { cursor: default; }
+
+/* ---- Charts ---- */
+.chart { position: relative; width: 100%; }
+.chart svg text { font-size: 11.5px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.chart .empty { height: 100%; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; text-align: center; padding: 10px; }
+.tip {
+  position: fixed; z-index: 50; pointer-events: none; min-width: 120px; max-width: 280px;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--border-2); border-radius: 9px;
+  padding: 8px 10px; font-size: 13px; box-shadow: 0 6px 24px rgba(0,0,0,.14); opacity: 0; transition: opacity .1s;
+}
+.tip.show { opacity: 1; }
+.tip .tt { font-weight: 650; margin-bottom: 4px; }
+.tip .row { display: flex; align-items: center; gap: 7px; justify-content: space-between; }
+.tip .row .k { color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
+.tip .row .v { font-weight: 650; font-variant-numeric: tabular-nums; }
+.tip .lk { width: 12px; height: 2px; border-radius: 1px; display: inline-block; }
+table.data { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+table.data th, table.data td { padding: 4px 8px; border-bottom: 1px solid var(--grid); text-align: right; }
+table.data th:first-child, table.data td:first-child { text-align: left; }
+.table-scroll { max-height: 260px; overflow: auto; }
+
+/* ---- Console ---- */
+.console {
+  font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 12px; height: 260px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+}
+.console .l-data { color: var(--muted); }
+.console .l-prompt { font-weight: 700; color: var(--ink); }
+.console .l-sys { color: var(--accent); font-style: italic; }
+.console .l-err { color: var(--critical-text); font-weight: 600; }
+.console.hide-data .l-data { display: none; }
+.console-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+label.check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); cursor: pointer; user-select: none; }
+
+/* ---- Guide ---- */
+.guide { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 8px 28px; }
+.guide h3 { font-size: 14.5px; margin: 14px 0 6px; }
+.guide p, .guide li { font-size: 14px; color: var(--ink-2); }
+.guide ol, .guide ul { padding-left: 20px; margin: 6px 0; }
+.guide li { margin: 3px 0; }
+.guide code, .card code { font: 12.5px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; border: 1px solid var(--border); }
+details > summary { cursor: pointer; font-weight: 650; font-size: 15.5px; list-style: none; display: flex; align-items: center; gap: 8px; }
+details > summary::-webkit-details-marker { display: none; }
+details > summary::before { content: "▸"; color: var(--muted); transition: transform .15s; display: inline-block; }
+details[open] > summary::before { transform: rotate(90deg); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+      <rect x="2" y="11" width="30" height="19" rx="4" fill="var(--accent)"/>
+      <rect x="6" y="5" width="9" height="7" rx="2.5" fill="var(--accent)"/>
+      <rect x="19" y="5" width="9" height="7" rx="2.5" fill="var(--accent)"/>
+      <path d="M9 22.5h5l3-5 3 8 2.5-3H26" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div>
+      <h1>Reinforcement Learning with SPIKE&nbsp;Prime</h1>
+      <div class="sub">Watch your robot learn, one try at a time</div>
+    </div>
+  </div>
+  <div class="seg" role="group" aria-label="Activity">
+    <button type="button" id="tabSearch" aria-pressed="true">1D Color Search</button>
+    <button type="button" id="tabWalker" aria-pressed="false">Smart Walker</button>
+  </div>
+  <div class="conn">
+    <span class="pill" id="connPill"><span class="dot"></span><span id="connText">Not connected</span></span>
+    <button type="button" class="btn primary" id="btnUSB" title="Connect with a USB cable (WebSerial)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v14"/><path d="M8 6l4-4 4 4"/><circle cx="12" cy="19" r="3"/><path d="M12 11l-5-2v-3"/><path d="M12 13l5-2V8"/></svg>
+      USB
+    </button>
+    <button type="button" class="btn primary" id="btnBLE" title="Connect with Bluetooth (Web Bluetooth)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7l10 10-5 5V2l5 5L7 17"/></svg>
+      Bluetooth
+    </button>
+    <button type="button" class="btn hidden" id="btnDisconnect">Disconnect</button>
+    <button type="button" class="btn" id="btnDemo" title="Try the dashboard with a simulated robot">Try demo</button>
+    <button type="button" class="btn ghost small" id="btnTheme" title="Switch light / dark" aria-label="Switch light or dark theme">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <div class="banner hidden" id="supportBanner" role="status"></div>
+  <div class="banner hidden" id="errorBanner" role="alert"></div>
+
+  <section class="demobar hidden" id="demoBar" aria-label="Demo controls">
+    <span class="title">Demo robot</span>
+    <span class="muted" id="demoNote">A simulated robot running the same program.</span>
+    <span class="spacer"></span>
+    <button type="button" class="btn hubbtn" id="demoLeft">◀ LEFT · Test</button>
+    <button type="button" class="btn hubbtn" id="demoRight">RIGHT · Train ▶</button>
+    <button type="button" class="btn" id="demoTrain5">Train ×5</button>
+    <button type="button" class="btn" id="demoShuffle" title="Rearrange the demo bricks to see the robot re-learn">Rearrange bricks</button>
+    <label class="check">Speed
+      <select id="demoSpeed" class="btn small"><option value="1">1×</option><option value="3" selected>3×</option><option value="10">10×</option></select>
+    </label>
+    <button type="button" class="btn ghost" id="demoExit">Exit demo</button>
+  </section>
+
+  <section class="card now" aria-live="polite">
+    <div class="mode">
+      <span class="badge" id="modeBadge">Not connected</span>
+      <span class="detail" id="modeDetail"></span>
+    </div>
+    <div>
+      <div class="label">What to do now</div>
+      <div class="prompt" id="promptText">Connect to your hub with USB or Bluetooth, then start the program on the hub.</div>
+    </div>
+  </section>
+
+  <!-- =========================== 1D COLOR SEARCH =========================== -->
+  <section id="viewSearch" class="grid" aria-label="1D Color Search">
+    <div class="grid g-search">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>The track</h2>
+            <p class="sub">Bricks appear as the robot discovers them. Arrows show the move it thinks is best from each brick (darker = more sure).</p>
+          </div>
+        </div>
+        <div class="track-wrap" id="trackWrap">
+          <svg id="trackSvg" role="img" aria-label="Track of bricks with the robot arm"></svg>
+          <div class="placeholder-note hidden" id="trackNote"><span>Your track appears here when the 1D Color Search program is running on the hub.</span></div>
+        </div>
+        <div class="status-line" id="searchStatus"></div>
+        <div class="path" id="searchPath" aria-label="This run"></div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <h2>Q-table</h2>
+          <p class="sub">The robot's score for each move from each color it has found. Higher = better.</p>
+          <div class="scroll-x"><table class="qtable" id="qtableSearch"></table></div>
+          <div class="legend" id="legendSearchQ"></div>
+          <p class="note" id="searchQNote"></p>
+        </div>
+        <div class="card">
+          <h2>What just happened</h2>
+          <p class="sub">The last decision, and how the Q-table changed.</p>
+          <div class="explain" id="explainSearch"><span class="muted">Nothing yet. Start a run on the hub.</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="tiles" id="tilesSearch"></div>
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h2>Steps to finish, run by run</h2>
+          <p class="sub">Fewer steps = a smarter search. The tick on each column shows the shortest possible path from that start, once the map knows it.</p>
+        </div>
+        <button type="button" class="btn small" data-table-toggle="chartSearch">Show table</button>
+      </div>
+      <div class="chart" id="chartSearch" style="height:240px"></div>
+      <div class="table-scroll hidden" id="chartSearchTable"></div>
+      <div class="legend" id="legendSearchRuns"></div>
+    </div>
+  </section>
+
+  <!-- =========================== SMART WALKER =========================== -->
+  <section id="viewWalker" class="grid hidden" aria-label="Smart Walker">
+    <div class="grid g-walker-top">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Heading</h2>
+            <p class="sub">Which way the robot points, compared to the target. The zone is the robot's <b>state</b>.</p>
+          </div>
+        </div>
+        <div class="dial-wrap" id="dialWrap">
+          <svg id="dialSvg" viewBox="-180 -192 360 362" role="img" aria-label="Heading dial"></svg>
+          <div class="placeholder-note hidden" id="dialNote"><span>The heading appears here when the Smart Walker program is running on the hub.</span></div>
+        </div>
+        <div class="status-line" id="dialText" style="text-align:center"></div>
+        <div style="text-align:center;margin-top:6px"><label class="check"><input type="checkbox" id="mirrorToggle"> Mirror left / right (if the dial turns the wrong way)</label></div>
+        <p class="note" style="text-align:center">Not to scale: zones near straight are drawn wider so they are easy to see. Numbers outside the ring are rewards.</p>
+      </div>
+      <div class="card">
+        <h2>Chosen action</h2>
+        <p class="sub">The leg speeds picked for this step.</p>
+        <div id="legsBox"></div>
+        <div class="explain" id="explainWalker" style="margin-top:10px"><span class="muted">Nothing yet. Start a run on the hub.</span></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Estimated path</h2>
+            <p class="sub">Top view of the last few runs. Straighter = better.</p>
+          </div>
+        </div>
+        <div class="chart" id="pathChart" style="height:300px"></div>
+        <p class="note">An estimate: the hub measures turning, not distance, so each step is drawn as a stride sized by the leg speeds.</p>
+      </div>
+    </div>
+    <div class="tiles" id="tilesWalker"></div>
+    <div class="grid g-walker-mid">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Heading during the run</h2>
+            <p class="sub" id="traceSub">Degrees away from straight at every step. Shaded bands are the state zones.</p>
+          </div>
+          <button type="button" class="btn small" data-table-toggle="traceChart">Show table</button>
+        </div>
+        <div class="chart" id="traceChart" style="height:260px"></div>
+        <div class="table-scroll hidden" id="traceChartTable"></div>
+        <div class="legend" id="legendTrace"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Reward per step, run by run</h2>
+            <p class="sub" id="rewardSub">Average reward. Higher = walked straighter.</p>
+          </div>
+          <button type="button" class="btn small" data-table-toggle="rewardChart">Show table</button>
+        </div>
+        <div class="chart" id="rewardChart" style="height:260px"></div>
+        <div class="table-scroll hidden" id="rewardChartTable"></div>
+        <div class="legend" id="legendReward"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Q-table</h2>
+      <p class="sub">One row per heading zone (state), one column per pair of leg speeds (action). Columns run from "right leg faster" to "left leg faster". The outlined cell is the best action for that state.</p>
+      <div class="scroll-x"><table class="qtable wide" id="qtableWalker"></table></div>
+      <div class="legend" id="legendWalkerQ"></div>
+    </div>
+  </section>
+
+  <!-- =========================== CONSOLE =========================== -->
+  <section class="card">
+    <details id="consoleDetails" open>
+      <summary>Hub console</summary>
+      <p class="sub" style="margin-top:6px">Everything the hub prints. Lines starting with <code>&gt;&gt;</code> are instructions. Lines starting with <code>@</code> are data for this dashboard.</p>
+      <div class="console-tools" style="margin-bottom:8px">
+        <label class="check"><input type="checkbox" id="showData"> Show data lines</label>
+        <label class="check"><input type="checkbox" id="autoScroll" checked> Auto-scroll</label>
+        <span style="flex:1"></span>
+        <button type="button" class="btn small" id="btnClear">Clear</button>
+        <button type="button" class="btn small" id="btnSave">Save log</button>
+        <button type="button" class="btn small" id="btnLoad">Open log…</button>
+        <input type="file" id="fileLoad" accept=".txt,.log,text/plain" class="hidden">
+      </div>
+      <div class="console hide-data" id="console" role="log" aria-label="Hub output"></div>
+    </details>
+  </section>
+
+  <!-- =========================== GUIDE =========================== -->
+  <section class="card">
+    <details id="guideDetails">
+      <summary>Guide: getting started, key ideas, troubleshooting</summary>
+      <div class="guide">
+        <div>
+          <h3>Getting started</h3>
+          <ol>
+            <li>Build your robot.
+              <br><b>Color Search:</b> arm motor in port B, color sensor in port D.
+              <br><b>Smart Walker:</b> left leg motor in port B, right leg motor in port A.</li>
+            <li><b>Color Search only:</b> download and run <code>read_color.py</code> first. Hold LEFT, then RIGHT, to sweep the arm and check that every brick reads correctly and the gaps read as NONE.</li>
+            <li>Open <code>rl_color_search.py</code> or <code>rl_smart_walker.py</code> in the SPIKE App. Check the <b>SETTINGS</b> at the top, then download it to a program slot on the hub.</li>
+            <li>Close the SPIKE App (or disconnect it from the hub). Only one app can talk to the hub at a time.</li>
+            <li>Start the program on the hub: pick its slot with the left/right buttons, then press the center button.</li>
+            <li>Click <b>USB</b> or <b>Bluetooth</b> above and choose your hub. For Bluetooth, press the hub's Bluetooth button first so it blinks.</li>
+            <li>Follow <b>What to do now</b>. On the hub, <b>RIGHT = train</b> and <b>LEFT = test</b>.</li>
+          </ol>
+          <p>The robot works without this page too. The dashboard only watches what the hub prints, so you can connect or reconnect at any time. It catches up at the start of the next run.</p>
+        </div>
+        <div>
+          <h3>Key ideas</h3>
+          <ul>
+            <li><b>State</b>: what the robot senses. The color under the sensor, or the walker's heading zone.</li>
+            <li><b>Action</b>: what it can do. Sweep left/right, or a pair of leg speeds.</li>
+            <li><b>Reward</b>: a score for what happened after the action.</li>
+            <li><b>Q-value</b>: the robot's guess of how good an action is in a state, counting future rewards too. The <b>Q-table</b> holds one for every state–action pair.</li>
+            <li><b>Explore vs. exploit</b>: with chance <b>ε</b> (epsilon) the robot tries a random action (explore). Otherwise it picks the best one it knows (exploit).</li>
+            <li><b>Learning rate α</b> (alpha): how far each new experience moves a Q-value.</li>
+            <li><b>Discount γ</b> (gamma): how much future rewards count compared to the reward right now.</li>
+          </ul>
+          <p>After every training step the robot nudges one Q-value toward a <b>target</b>:<br>
+          <code>new Q = old Q + α × (reward + γ × best next − old Q)</code></p>
+        </div>
+        <div>
+          <h3>Troubleshooting</h3>
+          <ul>
+            <li><b>Buttons are grayed out:</b> use Chrome or Edge on a laptop or desktop. Safari and Firefox can't connect to the hub.</li>
+            <li><b>The hub isn't in the list:</b> close the SPIKE App. For USB, try another cable. For Bluetooth, press the hub's Bluetooth button.</li>
+            <li><b>Connected, but nothing happens:</b> make sure the program is running on the hub and <code>DASHBOARD_LINES = True</code> in its settings. Data appears at the start of the next run.</li>
+            <li><b>Color Search finds colors that aren't bricks</b> (an extra row in the Q-table): run <code>read_color.py</code>. If the gaps read as a color, add it to <code>IGNORE_COLORS</code>. If a brick flickers between two colors, improve the lighting or move the sensor closer.</li>
+            <li><b>Rearranged the bricks?</b> Keep training to watch the robot re-learn (the map redraws itself), or restart the program to start fresh.</li>
+            <li><b>Wrong activity is showing:</b> click the activity tab at the top.</li>
+            <li><b>The walker dial turns the wrong way:</b> tick <i>Mirror left / right</i>.</li>
+            <li><b>Save your work:</b> <i>Save log</i> downloads everything the hub printed. <i>Open log…</i> replays it later.</li>
+          </ul>
+          <h3>For teachers: the data lines</h3>
+          <p>Each <code>@</code> line is a type followed by <code>key=value</code> pairs, for example <code>@STEP run=4 t=2 state=BLUE action=RIGHT reward=-1 old=0.00 best_next=0.00 new=-0.50</code>. The types are <code>HELLO</code>, <code>CONFIG</code>, <code>QTABLE</code>, <code>QROW</code>, <code>DISCOVER</code>, <code>START</code>, <code>CHOOSE</code>, <code>STEP</code> and <code>END</code>. Lines starting with <code>&gt;&gt; </code> become the instruction banner. You can add your own <code>print()</code> lines freely. The dashboard shows them in the console.</p>
+        </div>
+      </div>
+    </details>
+  </section>
+</main>
+
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   PROTOCOL-BEGIN
+   Pure logic: parse lines printed by the hub programs and keep the
+   learning state. (No DOM access in this section.)
+   ===================================================================== */
+
+let notify = function () {};   // replaced by the UI below
+
+const ACTIVITY_NAMES = { search: '1D Color Search', walker: 'Smart Walker' };
+
+function parseValue(v) {
+  if (v === '') return v;
+  try { return JSON.parse(v); } catch (e) { return v; }
+}
+
+/** "@TYPE k=v k=v" -> {type, data}  (returns null for non-data lines) */
+function parseDataLine(line) {
+  if (!line.startsWith('@')) return null;
+  const parts = line.slice(1).trim().split(/\s+/);
+  const type = (parts.shift() || '').toUpperCase();
+  if (!/^[A-Z_]+$/.test(type)) return null;
+  const data = {};
+  let broken = false;   // a list that doesn't parse usually means the hub cut the line short
+  for (const tok of parts) {
+    const eq = tok.indexOf('=');
+    if (eq <= 0) continue;
+    const raw = tok.slice(eq + 1), v = parseValue(raw);
+    if (raw.startsWith('[') && typeof v === 'string') broken = true;
+    data[tok.slice(0, eq)] = v;
+  }
+  return { type, data, broken };
+}
+
+function asList(v) {
+  if (Array.isArray(v)) return v;
+  if (v === undefined || v === null || v === '') return [];
+  return String(v).split(',').filter(s => s.length);
+}
+function asNum(v, dflt = null) {
+  const n = typeof v === 'number' ? v : parseFloat(v);
+  return Number.isFinite(n) ? n : dflt;
+}
+function zeros(rows, cols) { return Array.from({ length: rows }, () => new Array(cols).fill(0)); }
+
+function newSearchState() {
+  return { cfg: null, cfgKey: '', cfgRaw: null, states: [], q: [], pairs: {}, runs: [], cur: null, last: null,
+           choose: null, posNode: null, lastUpdated: null, qEp: 0 };
+}
+function newWalkerState() {
+  return { cfg: null, cfgKey: '', cfgRaw: null, q: null, runs: [], cur: null, last: null,
+           heading: null, lastUpdated: null, epsilon: null, qEp: 0 };
+}
+
+const store = {
+  app: null,          // activity the hub says it is running
+  prompt: '',
+  promptStamp: 0,
+  error: null,        // {text}
+  tracebackOpen: false,
+  search: newSearchState(),
+  walker: newWalkerState(),
+  seq: 0,
+};
+
+function resetStore() {
+  store.app = null; store.prompt = ''; store.error = null; store.tracebackOpen = false;
+  store.search = newSearchState(); store.walker = newWalkerState();
+}
+
+/* ---------- color search helpers ---------- */
+function normSearchCfg(d) {
+  return {
+    goal: String(d.goal || ''), boundary: String(d.boundary || ''),
+    ignore: asList(d.ignore).filter(x => x !== 'none'),
+    actions: asList(d.actions).length ? asList(d.actions) : ['LEFT', 'RIGHT'],
+    alpha: asNum(d.alpha), gamma: asNum(d.gamma), epsilon: asNum(d.epsilon),
+    max_steps: asNum(d.max_steps, 15), reward_goal: asNum(d.reward_goal, 10),
+    reward_boundary: asNum(d.reward_boundary, -10), reward_step: asNum(d.reward_step, -1),
+  };
+}
+/** Add a newly discovered color as a state (a Q-table row). Returns its row, or -1. */
+function addSearchState(s, name) {
+  if (!name || name === 'NONE' || name === 'none') return -1;
+  if (s.cfg && (name === s.cfg.goal || name === s.cfg.boundary)) return -1;
+  let i = s.states.indexOf(name);
+  if (i < 0) { s.states.push(name); s.q.push([0, 0]); i = s.states.length - 1; }
+  return i;
+}
+
+/* ---- The track map, pieced together from the moves the robot makes ----
+   The program never lists the bricks, so the dashboard learns the layout too:
+   every move tells it "brick A is just left of brick B". The boundary color sits at
+   both ends, so it becomes two map nodes: "BLACK@L" and "BLACK@R". */
+function mapNode(cfg, name, action) {
+  if (cfg && name === cfg.boundary) return name + (action === 'LEFT' ? '@L' : '@R');
+  return name;
+}
+function nodeColor(node) { return node ? String(node).split('@')[0] : null; }
+/** Repeated sightings make a pair stronger; contradicting pairs fade, so the map
+    re-draws itself if the bricks are rearranged. */
+function observePair(s, L, R) {
+  const key = L + '|' + R;
+  for (const k of Object.keys(s.pairs)) {
+    if (k === key) continue;
+    const [a, b] = k.split('|');
+    if (a === L || b === R || (a === R && b === L)) {
+      s.pairs[k] *= 0.5;
+      if (s.pairs[k] < 0.05) delete s.pairs[k];
+    }
+  }
+  s.pairs[key] = (s.pairs[key] || 0) + 1;
+}
+/** Known bricks, left to right. A null entry means "unknown bricks may be here". */
+function searchLayout(s) {
+  const nodes = [];
+  const add = n => { if (n && !nodes.includes(n)) nodes.push(n); };
+  s.states.forEach(add);
+  Object.keys(s.pairs).forEach(k => k.split('|').forEach(add));
+  add(s.posNode);
+  const right = {}, left = {}, parent = {};
+  nodes.forEach(n => { parent[n] = n; });
+  const find = x => { while (parent[x] !== x) x = parent[x]; return x; };
+  Object.entries(s.pairs).sort((a, b) => b[1] - a[1]).forEach(([k, score]) => {
+    if (score < 0.3) return;
+    const [L, R] = k.split('|');
+    if (L.endsWith('@R') || R.endsWith('@L')) return;     // nothing lies beyond the ends
+    if (right[L] || left[R] || find(L) === find(R)) return;
+    right[L] = R; left[R] = L; parent[find(R)] = find(L);
+  });
+  const chains = nodes.filter(n => !left[n]).map(n => {
+    const c = [n];
+    for (let x = n; right[x]; x = right[x]) c.push(right[x]);
+    return c;
+  });
+  const rank = c => (c.some(n => n.endsWith('@L')) ? -1 : c.some(n => n.endsWith('@R')) ? 1 : 0);
+  chains.sort((a, b) => rank(a) - rank(b));
+  const slots = [];
+  chains.forEach((c, i) => { if (i) slots.push(null); slots.push(...c); });
+  return slots;
+}
+/** Bricks between two nodes, if both sit in the same known stretch of track. */
+function chainDistance(layout, a, b) {
+  const i = layout.indexOf(a), j = layout.indexOf(b);
+  if (i < 0 || j < 0) return null;
+  for (let k = Math.min(i, j); k <= Math.max(i, j); k++) if (layout[k] === null) return null;
+  return Math.abs(i - j);
+}
+function shortestFor(s, layout, startName) {
+  if (!s.cfg || !startName) return null;
+  return chainDistance(layout, startName, s.cfg.goal);
+}
+/** The move that really leads toward the goal from a brick (null if not known yet). */
+function correctMoveFor(s, layout, name) {
+  if (!s.cfg || chainDistance(layout, name, s.cfg.goal) === null) return null;
+  return layout.indexOf(name) < layout.indexOf(s.cfg.goal) ? 'RIGHT' : 'LEFT';
+}
+
+/* ---------- walker helpers ---------- */
+function normWalkerCfg(d) {
+  const speeds = Array.isArray(d.speeds) ? d.speeds.map(Number) : [];
+  let actions = Array.isArray(d.actions) && d.actions.every(a => Array.isArray(a) && a.length === 2)
+    ? d.actions.map(a => [asNum(a[0], 0), asNum(a[1], 0)]) : [];
+  if (!actions.length) {   // same rule as the hub: every (left, right) pair except both stopped
+    for (const l of speeds) for (const r of speeds) if (l !== 0 || r !== 0) actions.push([l, r]);
+  }
+  return {
+    states: Array.isArray(d.states) ? d.states.map(Number) : [-3, -2, -1, 0, 1, 2, 3],
+    edges: Array.isArray(d.edges) ? d.edges.map(Number) : [5, 20, 40],
+    rewards: Array.isArray(d.rewards) ? d.rewards.map(Number) : [],
+    speeds, actions, alpha: asNum(d.alpha), gamma: asNum(d.gamma),
+    epsilon_start: asNum(d.epsilon_start), epsilon_min: asNum(d.epsilon_min), epsilon_decay: asNum(d.epsilon_decay),
+    train_steps: asNum(d.train_steps, 30), test_steps: asNum(d.test_steps, 60),
+    step_ms: asNum(d.step_ms, 500), give_up: asNum(d.give_up, 140),
+  };
+}
+function walkerStateIndex(cfg, state) { return cfg ? cfg.states.indexOf(Number(state)) : -1; }
+function walkerReward(cfg, state) {
+  const i = walkerStateIndex(cfg, state);
+  return i >= 0 && cfg.rewards[i] !== undefined ? cfg.rewards[i] : null;
+}
+
+/* ---------- main dispatcher ---------- */
+function handleLine(raw) {
+  const line = String(raw).replace(/\0/g, '').replace(/\r$/, '');
+  store.seq++;
+
+  // Python errors on the hub
+  if (/^Traceback \(most recent call last\)/.test(line)) {
+    store.tracebackOpen = true; store.error = { text: 'The program on the hub stopped with an error.' };
+    notify('error'); return;
+  }
+  if (store.tracebackOpen) {
+    if (/^\s/.test(line)) return;
+    store.tracebackOpen = false;
+    store.error = { text: line.trim() };
+    notify('error'); return;
+  }
+
+  if (line.startsWith('>> ')) {
+    store.prompt = line.slice(3).trim(); store.promptStamp = store.seq;
+    notify('prompt'); return;
+  }
+  const msg = parseDataLine(line);
+  if (!msg) return;
+  if (msg.broken) notify('truncated', line.length);
+  const d = msg.data;
+  let app = d.app || store.app;
+  if (!app) {
+    if (msg.type === 'CHOOSE' || msg.type === 'DISCOVER' || ('next' in d && typeof d.state === 'string')) app = 'search';
+    else if ('heading' in d) app = 'walker';
+  }
+  if (app !== 'search' && app !== 'walker') return;
+  if (d.app && store.app !== d.app) { store.app = d.app; notify('app'); }
+  if (msg.type === 'HELLO') {
+    store.error = null;
+    if (app === 'search') store.search = newSearchState(); else store.walker = newWalkerState();
+    notify('hello'); return;
+  }
+  if (app === 'search') searchEvent(msg.type, d); else walkerEvent(msg.type, d);
+}
+
+function searchEvent(type, d) {
+  const s = store.search;
+  switch (type) {
+    case 'CONFIG': {
+      s.cfgRaw = Object.assign({}, s.cfgRaw, d);
+      const cfg = normSearchCfg(s.cfgRaw);
+      const key = JSON.stringify(cfg);
+      if (key !== s.cfgKey) { s.cfg = cfg; s.cfgKey = key; }
+      break;
+    }
+    case 'QTABLE': {
+      const names = asList(d.states).filter(x => x !== 'none').map(String);
+      if (Array.isArray(d.q) && d.q.length === names.length) {   // older programs: whole table on one line
+        s.states = names; s.q = d.q.map(r => r.map(Number));
+      } else if (d.states !== undefined) {                       // the rows follow as QROW lines
+        const old = new Map(s.states.map((n, i) => [n, s.q[i]]));
+        s.states = names; s.q = names.map(n => (old.get(n) || [0, 0]).slice());
+      }
+      s.qEp = asNum(d.ep, s.qEp);
+      break;
+    }
+    case 'QROW': {
+      const si = addSearchState(s, String(d.state));
+      if (si >= 0 && Array.isArray(d.q)) d.q.forEach((v, k) => { s.q[si][k] = Number(v); });
+      break;
+    }
+    case 'DISCOVER': {
+      addSearchState(s, String(d.state));
+      break;
+    }
+    case 'START': {
+      s.cur = { run: d.run, mode: d.mode, ep: d.ep, start: String(d.start), epsilon: asNum(d.epsilon),
+                steps: [], result: null };
+      s.posNode = String(d.start);
+      addSearchState(s, String(d.start));
+      s.choose = null; s.last = null; s.lastUpdated = null;
+      break;
+    }
+    case 'CHOOSE': {
+      if (!s.cur) s.cur = { run: d.run, mode: null, ep: null, start: String(d.state), steps: [], result: null };
+      s.choose = { run: d.run, t: d.t, state: String(d.state), action: String(d.action),
+                   explore: d.explore === 'yes', q: Array.isArray(d.q) ? d.q.map(Number) : null };
+      addSearchState(s, String(d.state));
+      if (!s.posNode) s.posNode = String(d.state);
+      break;
+    }
+    case 'STEP': {
+      if (!s.cur) s.cur = { run: d.run, mode: d.new !== undefined ? 'train' : 'test', ep: null,
+                            start: String(d.state), steps: [], result: null };
+      const from = String(d.state), to = String(d.next), action = String(d.action);
+      addSearchState(s, from);
+      const toNode = mapNode(s.cfg, to, action);
+      if (action === 'LEFT') observePair(s, toNode, from); else observePair(s, from, toNode);
+      addSearchState(s, to);
+      const step = {
+        t: d.t, state: from, action, explore: d.explore === 'yes', next: to, reward: asNum(d.reward, 0),
+        old: asNum(d.old), best_next: asNum(d.best_next), new: asNum(d.new),
+        choiceQ: s.choose && s.choose.t === d.t ? s.choose.q : null, toNode,
+      };
+      s.cur.steps.push(step);
+      s.posNode = toNode;
+      if (step.new !== null) {
+        const si = s.states.indexOf(from), ai = (s.cfg ? s.cfg.actions : ['LEFT', 'RIGHT']).indexOf(action);
+        if (si >= 0 && ai >= 0) { s.q[si][ai] = step.new; s.lastUpdated = { si, ai, seq: store.seq }; }
+      }
+      s.last = step; s.choose = null;
+      break;
+    }
+    case 'END': {
+      const run = (s.cur && s.cur.run === d.run) ? s.cur
+        : { run: d.run, mode: d.mode, ep: d.ep, start: null, steps: [] };
+      run.mode = d.mode; run.ep = d.ep; run.result = String(d.result);
+      run.total = asNum(d.total, 0); run.nsteps = asNum(d.steps, run.steps.length);
+      if (!run.start && run.steps.length) run.start = run.steps[0].state;
+      if (!s.runs.some(r => r.run === run.run)) s.runs.push(run);
+      s.cur = null; s.choose = null;
+      break;
+    }
+    default: return;
+  }
+  notify('search');
+}
+
+function walkerEvent(type, d) {
+  const w = store.walker;
+  switch (type) {
+    case 'CONFIG': {
+      w.cfgRaw = Object.assign({}, w.cfgRaw, d);
+      const cfg = normWalkerCfg(w.cfgRaw);
+      const key = JSON.stringify(cfg);
+      if (key !== w.cfgKey) {
+        const sameShape = w.q && w.q.length === cfg.states.length && w.q.every(r => r.length === cfg.actions.length);
+        w.cfg = cfg; w.cfgKey = key;
+        if (!sameShape) w.q = zeros(cfg.states.length, cfg.actions.length);
+        if (w.epsilon === null) w.epsilon = cfg.epsilon_start;
+      }
+      break;
+    }
+    case 'QTABLE': {
+      if (Array.isArray(d.q)) w.q = d.q.map(r => r.map(Number));   // older programs: whole table on one line
+      if (d.epsilon !== undefined) w.epsilon = asNum(d.epsilon, w.epsilon);
+      w.qEp = asNum(d.ep, w.qEp);
+      break;
+    }
+    case 'QROW': {   // one row (or part of a row) of the Q-table
+      const si = walkerStateIndex(w.cfg, d.state);
+      if (si < 0 || !Array.isArray(d.q)) break;
+      if (!w.q) w.q = zeros(w.cfg.states.length, w.cfg.actions.length);
+      const from = asNum(d.from, 0);
+      d.q.forEach((v, k) => { w.q[si][from + k] = Number(v); });
+      break;
+    }
+    case 'START': {
+      w.cur = { run: d.run, mode: d.mode, ep: d.ep, epsilon: asNum(d.epsilon),
+                startHeading: asNum(d.heading, 0), trace: [], result: null };
+      w.heading = asNum(d.heading, 0); w.last = null; w.lastUpdated = null;
+      break;
+    }
+    case 'STEP': {
+      if (!w.cur) w.cur = { run: d.run, mode: d.new !== undefined ? 'train' : 'test', ep: null,
+                            startHeading: asNum(d.heading, 0), trace: [], result: null };
+      const step = {
+        t: asNum(d.t, w.cur.trace.length + 1), heading: asNum(d.heading, 0), state: asNum(d.state, 0),
+        action: asNum(d.action, 0), left: asNum(d.left, 0), right: asNum(d.right, 0),
+        explore: d.explore === 'yes', next_heading: asNum(d.next_heading, 0), next: asNum(d.next, 0),
+        reward: asNum(d.reward, 0), old: asNum(d.old), best_next: asNum(d.best_next), new: asNum(d.new),
+        epsilon: asNum(d.epsilon),
+      };
+      if (w.q && w.cfg) {
+        const row = w.q[walkerStateIndex(w.cfg, step.state)];
+        step.tie = row ? row.filter(v => v === row[step.action]).length > 1 && !step.explore : false;
+      }
+      w.cur.trace.push(step);
+      w.heading = step.next_heading;
+      if (step.new !== null && w.cfg) {
+        if (!w.q) w.q = zeros(w.cfg.states.length, w.cfg.actions.length);
+        const si = walkerStateIndex(w.cfg, step.state);
+        if (si >= 0 && w.q[si]) {
+          w.q[si][step.action] = step.new; w.lastUpdated = { si, ai: step.action, seq: store.seq };
+        }
+        if (!w.cfg.actions[step.action]) w.cfg.actions[step.action] = [step.left, step.right];
+      }
+      if (step.epsilon !== null) w.epsilon = step.epsilon;
+      w.last = step;
+      break;
+    }
+    case 'END': {
+      const run = (w.cur && w.cur.run === d.run) ? w.cur
+        : { run: d.run, mode: d.mode, ep: d.ep, startHeading: 0, trace: [] };
+      run.mode = d.mode; run.ep = d.ep; run.result = String(d.result);
+      run.total = asNum(d.total, 0); run.steps = asNum(d.steps, run.trace.length);
+      run.average = asNum(d.average, run.steps ? run.total / run.steps : 0);
+      if (!w.runs.some(r => r.run === run.run)) w.runs.push(run);
+      w.cur = null;
+      break;
+    }
+    default: return;
+  }
+  notify('walker');
+}
+
+/* ---------- Hub byte stream: plain text (USB REPL) or LEGO's COBS-framed messages ---------- */
+const COBS_DELIM = 0x02, COBS_MAX_BLOCK = 84, COBS_XOR = 0x03;
+
+function cobsEncode(bytes) {
+  const buf = [];
+  let codeIndex = 0, block = 0;
+  const begin = () => { codeIndex = buf.length; buf.push(0xFF); block = 1; };
+  begin();
+  for (const b of bytes) {
+    if (b > COBS_DELIM) { buf.push(b); block++; }
+    if (b <= COBS_DELIM || block > COBS_MAX_BLOCK) {
+      if (b <= COBS_DELIM) buf[codeIndex] = b * COBS_MAX_BLOCK + block + COBS_DELIM;
+      begin();
+    }
+  }
+  buf[codeIndex] = block + COBS_DELIM;
+  return buf;
+}
+function cobsDecode(data) {
+  const out = [];
+  const unescape = code => {
+    if (code === 0xFF) return [null, COBS_MAX_BLOCK + 1];
+    const v = code - COBS_DELIM;
+    if (v < 0) throw new Error('bad COBS code');
+    let value = Math.floor(v / COBS_MAX_BLOCK), block = v % COBS_MAX_BLOCK;
+    if (block === 0) { block = COBS_MAX_BLOCK; value -= 1; }
+    return [value, block];
+  };
+  if (!data.length) return new Uint8Array(0);
+  let [value, block] = unescape(data[0]);
+  for (let i = 1; i < data.length; i++) {
+    block--;
+    if (block > 0) { out.push(data[i]); continue; }
+    if (value !== null) out.push(value);
+    [value, block] = unescape(data[i]);
+  }
+  return Uint8Array.from(out);
+}
+/** message bytes -> frame ready to send */
+function packMessage(bytes) {
+  const enc = cobsEncode(bytes).map(b => b ^ COBS_XOR);
+  enc.push(COBS_DELIM);
+  return Uint8Array.from(enc);
+}
+/** frame bytes (without the trailing 0x02) -> message bytes */
+function unpackFrame(frame) {
+  const start = frame[0] === 0x01 ? 1 : 0;   // 0x01 = high-priority marker
+  const data = new Uint8Array(frame.length - start);
+  for (let i = start; i < frame.length; i++) data[i - start] = frame[i] ^ COBS_XOR;
+  return cobsDecode(data);
+}
+
+class HubStream {
+  /** mode 'auto': start as plain text, switch to framed if a 0x02 delimiter shows up.
+      mode 'framed': always framed (Bluetooth). */
+  constructor(mode, onLine, onMessage) {
+    this.framed = mode === 'framed';
+    this.canSwitch = mode === 'auto';
+    this.onLine = onLine; this.onMessage = onMessage;
+    this.bytes = []; this.frame = []; this.pending = '';
+    this.lineDecoder = new TextDecoder();
+    this.consoleDecoder = new TextDecoder();
+  }
+  push(u8) {
+    for (let i = 0; i < u8.length; i++) {
+      const b = u8[i];
+      if (!this.framed) {
+        if (b === COBS_DELIM && this.canSwitch) {
+          this.framed = true; this.frame = this.bytes; this.bytes = []; this.endFrame(); continue;
+        }
+        this.bytes.push(b);
+        if (b === 0x0A) this.flushBytes();
+      } else if (b === COBS_DELIM) {
+        this.endFrame();
+      } else {
+        this.frame.push(b);
+        if (this.frame.length > 8192) this.frame = [];
+      }
+    }
+  }
+  flushBytes() {
+    const s = this.lineDecoder.decode(Uint8Array.from(this.bytes));
+    this.bytes = [];
+    this.feedText(s);
+  }
+  feedText(s) {
+    this.pending += s.replace(/\0/g, '');
+    let idx;
+    while ((idx = this.pending.indexOf('\n')) >= 0) {
+      const line = this.pending.slice(0, idx).replace(/\r$/, '');
+      this.pending = this.pending.slice(idx + 1);
+      this.onLine(line);
+    }
+    if (this.pending.length > 8000) { this.onLine(this.pending); this.pending = ''; }
+  }
+  endFrame() {
+    const f = this.frame; this.frame = [];
+    if (!f.length) return;
+    let msg;
+    try { msg = unpackFrame(f); } catch (e) { return; }
+    if (!msg.length) return;
+    if (msg[0] === 0x21) {                        // ConsoleNotification: text printed by the program
+      this.feedText(this.consoleDecoder.decode(msg.subarray(1), { stream: true }));
+    } else if (this.onMessage) {
+      this.onMessage(msg);
+    }
+  }
+}
+
+/* PROTOCOL-END */
+
+/* =====================================================================
+   UI helpers
+   ===================================================================== */
+const $ = (sel, root = document) => root.querySelector(sel);
+const SVGNS = 'http://www.w3.org/2000/svg';
+function sv(tag, attrs = {}, parent = null) {
+  const n = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs)) if (v !== undefined && v !== null) n.setAttribute(k, v);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function h(tag, attrs = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v === undefined || v === null || v === false) continue;
+    if (k === 'class') n.className = v;
+    else if (k === 'style' && typeof v === 'object') Object.assign(n.style, v);
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v === true ? '' : v);
+  }
+  for (const kid of kids.flat()) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    n.appendChild(typeof kid === 'string' || typeof kid === 'number' ? document.createTextNode(String(kid)) : kid);
+  }
+  return n;
+}
+const MINUS = '−';
+function fmt(v, d = 2) {
+  if (v === null || v === undefined || Number.isNaN(v)) return '–';
+  const s = Math.abs(v).toFixed(d);
+  return (v < 0 && Number(s) !== 0 ? MINUS : '') + s;
+}
+function fmtSigned(v, d = 0) {
+  if (v === null || v === undefined) return '–';
+  const s = fmt(v, d);
+  return v > 0 && Number(Math.abs(v).toFixed(d)) !== 0 ? '+' + s : s;
+}
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+function hexToRgb(hex) {
+  const m = hex.replace('#', '');
+  const full = m.length === 3 ? m.split('').map(c => c + c).join('') : m;
+  const n = parseInt(full, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function mix(a, b, t) {
+  const A = hexToRgb(a), B = hexToRgb(b);
+  return 'rgb(' + A.map((x, i) => Math.round(x + (B[i] - x) * t)).join(',') + ')';
+}
+function luminanceOf(rgbStr) {
+  const m = rgbStr.match(/\d+/g).map(Number).map(c => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
+  return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2];
+}
+/** Diverging color for a Q-value: red (bad) – gray – blue (good). */
+function qColor(v, maxAbs) {
+  const mid = cssVar('--mid');
+  if (!maxAbs || v === 0) return { bg: mid, fg: luminanceOf(mix(mid, mid, 0)) > 0.3 ? cssVar('--ink') : '#fff' };
+  const t = clamp(Math.abs(v) / maxAbs, 0, 1);
+  const a = v > 0 ? cssVar('--pos') : cssVar('--neg');
+  const b = v > 0 ? cssVar('--pos-strong') : cssVar('--neg-strong');
+  const bg = t < 0.65 ? mix(mid, a, t / 0.65) : mix(a, b, (t - 0.65) / 0.35);
+  return { bg, fg: luminanceOf(bg) > 0.33 ? '#0b0b0b' : '#ffffff' };
+}
+function rampCSS() {
+  return `linear-gradient(90deg, ${cssVar('--neg-strong')}, ${cssVar('--neg')} 25%, ${cssVar('--mid')} 50%, ${cssVar('--pos')} 75%, ${cssVar('--pos-strong')})`;
+}
+
+const BRICK = {
+  BLACK: '#22262b', MAGENTA: '#c2368f', PURPLE: '#7b4bb3', BLUE: '#1e5aa8', AZURE: '#3fb6e8',
+  TURQUOISE: '#13a3a6', GREEN: '#00923f', YELLOW: '#f5c800', ORANGE: '#f57c1f', RED: '#c91a09',
+  WHITE: '#f4f4f2', NONE: '#9a9a96',
+};
+function brickColor(name) { return BRICK[name] || BRICK.NONE; }
+function titleCase(s) { s = String(s || ''); return s.charAt(0) + s.slice(1).toLowerCase(); }
+function swatch(name) { return h('span', { class: 'swatch', style: { background: brickColor(name) } }); }
+function colorChip(name, extra) { return h('span', { class: 'chip' }, swatch(name), titleCase(name), extra || null); }
+
+/* ---- Tooltip ---- */
+const tipEl = $('#tip');
+function showTip(evt, title, rows) {
+  tipEl.replaceChildren();
+  if (title) tipEl.appendChild(h('div', { class: 'tt' }, title));
+  for (const r of rows || []) {
+    const k = h('span', { class: 'k' });
+    if (r.color) k.appendChild(h('span', { class: 'lk', style: { background: r.color } }));
+    k.appendChild(document.createTextNode(r.k));
+    tipEl.appendChild(h('div', { class: 'row' }, k, h('span', { class: 'v' }, r.v)));
+  }
+  tipEl.classList.add('show');
+  const pad = 14, w = tipEl.offsetWidth, ht = tipEl.offsetHeight;
+  let x = evt.clientX + pad, y = evt.clientY + pad;
+  if (x + w > window.innerWidth - 8) x = evt.clientX - w - pad;
+  if (y + ht > window.innerHeight - 8) y = evt.clientY - ht - pad;
+  tipEl.style.left = Math.max(8, x) + 'px'; tipEl.style.top = Math.max(8, y) + 'px';
+}
+function hideTip() { tipEl.classList.remove('show'); }
+
+/* ---- Generic chart pieces ---- */
+function niceTicks(min, max, count = 5) {
+  if (min === max) { max = min + 1; }
+  const span = max - min, step0 = span / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= step0) || step0;
+  const lo = Math.floor(min / step) * step, hi = Math.ceil(max / step) * step;
+  const ticks = [];
+  for (let v = lo; v <= hi + step / 2; v += step) ticks.push(Math.round(v * 1e6) / 1e6);
+  return ticks;
+}
+function chartFrame(container, height) {
+  container.replaceChildren();
+  const width = Math.max(260, container.clientWidth || 600);
+  const svg = sv('svg', { width, height, viewBox: `0 0 ${width} ${height}` }, container);
+  return { svg, width, height };
+}
+function emptyChart(container, text) {
+  container.replaceChildren(h('div', { class: 'empty' }, text));
+}
+/** Column with a 4px rounded data end and a square end at the baseline. */
+function columnPath(x, w, yBase, yTop) {
+  const r = Math.min(4, w / 2, Math.abs(yBase - yTop));
+  if (yTop <= yBase) {
+    return `M${x},${yBase}V${yTop + r}Q${x},${yTop} ${x + r},${yTop}H${x + w - r}Q${x + w},${yTop} ${x + w},${yTop + r}V${yBase}Z`;
+  }
+  return `M${x},${yBase}V${yTop - r}Q${x},${yTop} ${x + r},${yTop}H${x + w - r}Q${x + w},${yTop} ${x + w},${yTop - r}V${yBase}Z`;
+}
+function renderDataTable(id, headers, rows) {
+  const box = $('#' + id + 'Table');
+  if (!box) return;
+  const t = h('table', { class: 'data' },
+    h('thead', {}, h('tr', {}, headers.map(x => h('th', {}, x)))),
+    h('tbody', {}, rows.map(r => h('tr', {}, r.map(c => h('td', {}, c))))));
+  box.replaceChildren(t);
+}
+function legendKeys(el, keys) {
+  el.replaceChildren(...keys.map(k => {
+    const mark = k.type === 'line' ? h('span', { class: 'k-line', style: { background: k.color } })
+      : k.type === 'ramp' ? h('span', { class: 'ramp', style: { background: k.color } })
+      : k.type === 'glyph' ? h('span', { style: { color: k.color, fontWeight: 700 } }, k.glyph)
+      : h('span', { class: 'k-rect', style: { background: k.color } });
+    return h('span', { class: 'key' }, mark, k.label);
+  }));
+}
+
+/* =====================================================================
+   VIEW STATE
+   ===================================================================== */
+const ui = {
+  view: 'search',
+  mirror: false,
+  trackBuiltKey: null,
+  track: null,      // refs into the track SVG
+  dialBuiltKey: null,
+  dial: null,
+  conn: null,       // 'usb' | 'ble' | 'demo' | null
+  connName: '',
+  lastPromptShown: 0,
+};
+
+const DEFAULT_SEARCH_CFG = normSearchCfg({
+  goal: 'GREEN', boundary: 'BLACK', ignore: 'none', actions: 'LEFT,RIGHT', alpha: 0.5, gamma: 0.9, epsilon: 0.1,
+  max_steps: 15, reward_goal: 10, reward_boundary: -10, reward_step: -1,
+});
+// Example track shown faded before the program runs
+const DEFAULT_LAYOUT = ['BLACK@L', 'MAGENTA', 'BLUE', 'AZURE', 'GREEN', 'YELLOW', 'RED', 'BLACK@R'];
+const DEFAULT_STATES = ['MAGENTA', 'BLUE', 'AZURE', 'YELLOW', 'RED'];
+const DEFAULT_WALKER_CFG = (() => {
+  const speeds = [0, 300, 750], actions = [];
+  for (const l of speeds) for (const r of speeds) if (l || r) actions.push([l, r]);
+  return normWalkerCfg({ states: [-3, -2, -1, 0, 1, 2, 3], edges: [5, 20, 40], rewards: [-25, -10, -2, 10, -2, -10, -25],
+    speeds, actions, alpha: 0.3, gamma: 0.9, epsilon_start: 0.9, epsilon_min: 0.1, epsilon_decay: 0.008,
+    train_steps: 20, test_steps: 40, step_ms: 750, give_up: 140 });
+})();
+
+function setView(v) {
+  ui.view = v;
+  $('#tabSearch').setAttribute('aria-pressed', v === 'search');
+  $('#tabWalker').setAttribute('aria-pressed', v === 'walker');
+  $('#viewSearch').classList.toggle('hidden', v !== 'search');
+  $('#viewWalker').classList.toggle('hidden', v !== 'walker');
+  if (demo.sim && demo.kind !== v) startDemo(v);
+  renderAll();
+}
+
+/* =====================================================================
+   RENDERING - top strip
+   ===================================================================== */
+function renderNow() {
+  const app = ui.view;
+  const s = app === 'search' ? store.search : store.walker;
+  const badge = $('#modeBadge'), detail = $('#modeDetail');
+  const cur = s.cur;
+  const trained = s.runs.filter(r => r.mode === 'train').length + (cur && cur.mode === 'train' ? 1 : 0);
+  if (cur && cur.mode) {
+    badge.className = 'badge ' + (cur.mode === 'train' ? 'train' : 'test');
+    badge.textContent = cur.mode === 'train' ? 'Training' : 'Testing';
+    if (app === 'search') {
+      const n = cur.steps.length;
+      detail.textContent = (cur.mode === 'train' ? `Episode ${cur.ep}` : `After ${cur.ep} training episodes`) + ` · step ${n}`;
+    } else {
+      const cfg = s.cfg || DEFAULT_WALKER_CFG;
+      const max = cur.mode === 'train' ? cfg.train_steps : cfg.test_steps;
+      detail.textContent = (cur.mode === 'train' ? `Episode ${cur.ep}` : `After ${cur.ep} training episodes`) + ` · step ${cur.trace.length} of ${max}`;
+    }
+  } else if (ui.conn) {
+    badge.className = 'badge';
+    badge.textContent = s.cfg ? 'Waiting' : 'Connected';
+    detail.textContent = s.cfg ? `${trained} training episode${trained === 1 ? '' : 's'} so far` : 'No data from the program yet';
+  } else {
+    badge.className = 'badge';
+    badge.textContent = s.runs.length ? 'Replay' : 'Not connected';
+    detail.textContent = s.runs.length ? `${s.runs.length} runs loaded` : '';
+  }
+
+  const p = $('#promptText');
+  let text = store.prompt;
+  if (!text) {
+    if (!ui.conn) text = 'Connect to your hub with USB or Bluetooth, then start the program on the hub. Or click "Try demo".';
+    else if (ui.conn === 'demo') text = 'Use the demo buttons above.';
+    else text = 'Connected! Start the program on the hub (choose its slot, then press the center button).';
+  }
+  if (p.textContent !== text) {
+    p.textContent = text;
+    if (store.prompt) { p.classList.remove('prompt-flash'); void p.offsetWidth; p.classList.add('prompt-flash'); }
+  }
+
+  const eb = $('#errorBanner');
+  if (store.error) {
+    eb.classList.remove('hidden');
+    eb.replaceChildren(h('div', {}, h('b', {}, 'The hub program stopped with an error. '),
+      h('span', {}, store.error.text), h('div', { class: 'muted', style: { fontSize: '13px', marginTop: '3px' } },
+        'Check the console below for the line number, fix the program, download it again, and restart it.')));
+  } else eb.classList.add('hidden');
+}
+
+function renderConn() {
+  const pill = $('#connPill');
+  pill.classList.toggle('on', ui.conn === 'usb' || ui.conn === 'ble');
+  pill.classList.toggle('demo', ui.conn === 'demo');
+  $('#connText').textContent = ui.conn === 'usb' ? 'Connected · USB'
+    : ui.conn === 'ble' ? 'Connected · ' + (ui.connName || 'Bluetooth')
+    : ui.conn === 'demo' ? 'Demo robot' : 'Not connected';
+  const live = ui.conn === 'usb' || ui.conn === 'ble';
+  $('#btnUSB').classList.toggle('hidden', live);
+  $('#btnBLE').classList.toggle('hidden', live);
+  $('#btnDisconnect').classList.toggle('hidden', !live);
+  $('#btnDemo').classList.toggle('hidden', live || ui.conn === 'demo');
+  $('#demoBar').classList.toggle('hidden', ui.conn !== 'demo');
+}
+
+/* =====================================================================
+   RENDERING - 1D Color Search
+   ===================================================================== */
+const TRACK_GEOM = { W: 640, H: 372, cx: 320, cy: 336, R: 240 };
+
+function buildTrack(slots, cfg) {
+  const svg = $('#trackSvg');
+  svg.replaceChildren();
+  const { W, H, cx, cy, R } = TRACK_GEOM;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const n = slots.length;
+  const spacing = n > 1 ? Math.min(150 / (n - 1), 26) : 26;
+  const span = spacing * Math.max(0, n - 1);
+  const angles = slots.map((_, i) => 90 + span / 2 - i * spacing);
+  const pt = (r, a) => [cx + r * Math.cos(a * Math.PI / 180), cy - r * Math.sin(a * Math.PI / 180)];
+
+  // guide arc: where bricks can be (the whole sweep of the arm)
+  {
+    const [x0, y0] = pt(R, 165), [x1, y1] = pt(R, 15);
+    sv('path', { d: `M${x0},${y0} A${R},${R} 0 0 1 ${x1},${y1}`, fill: 'none', stroke: 'var(--grid)', 'stroke-width': 26, 'stroke-linecap': 'round' }, svg);
+  }
+  const arcLen = R * spacing * Math.PI / 180;
+  const bw = clamp(arcLen * 0.64, 26, 58), bh = 32;
+  const refs = { angles, slots, spacing, bricks: [], arrows: [], labels: [] };
+  slots.forEach((node, i) => {
+    const a = angles[i];
+    if (node === null) {   // a stretch of track the robot hasn't connected yet
+      const [gx, gy] = pt(R, a);
+      const t = sv('text', { x: gx, y: gy + 5, 'text-anchor': 'middle', 'font-size': 18, 'font-weight': 700, fill: 'var(--muted)' }, svg);
+      t.textContent = '⋯';
+      const [lx, ly] = pt(R - 44, a);
+      sv('text', { x: lx, y: ly + 4, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' }, svg).textContent = 'not mapped';
+      refs.bricks.push(null); refs.arrows.push(null);
+      return;
+    }
+    const name = nodeColor(node);
+    const [x, y] = pt(R, a);
+    const g = sv('g', { transform: `translate(${x},${y}) rotate(${90 - a})`, class: 'brick-hit' }, svg);
+    const ring = sv('rect', { x: -bw / 2 - 5, y: -bh / 2 - 5, width: bw + 10, height: bh + 10, rx: 9, fill: 'none', stroke: 'var(--accent)', 'stroke-width': 3, opacity: 0 }, g);
+    sv('rect', { x: -bw / 2, y: -bh / 2, width: bw, height: bh, rx: 5, fill: brickColor(name), stroke: 'var(--border-2)', 'stroke-width': 1 }, g);
+    const studLight = name === 'WHITE' || name === 'YELLOW' ? 'rgba(0,0,0,.10)' : 'rgba(255,255,255,.22)';
+    for (const sx of [-bw / 4, bw / 4]) sv('circle', { cx: sx, cy: 0, r: Math.min(7, bw / 6), fill: 'none', stroke: studLight, 'stroke-width': 2 }, g);
+    g.addEventListener('pointermove', e => brickTip(e, i));
+    g.addEventListener('pointerleave', hideTip);
+    refs.bricks.push({ g, ring, name });
+
+    // outside: policy arrow, or GOAL / END marker with an upright label
+    const [ox, oy] = pt(R + 50, a);
+    const og = sv('g', { transform: `translate(${ox},${oy}) rotate(${90 - a})` }, svg);
+    const endLabel = text => {   // upright, just above the marker, away from the bricks
+      const t = sv('text', { x: clamp(ox, 34, W - 34), y: oy - 20, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 700, fill: 'var(--ink-2)' }, svg);
+      t.textContent = text;
+    };
+    if (name === cfg.goal) {
+      sv('path', { d: 'M0,-13 L3.8,-4.2 13,-4 6,2.2 8.1,11.5 0,6.4 -8.1,11.5 -6,2.2 -13,-4 -3.8,-4.2Z', fill: 'var(--good)', stroke: 'var(--surface)', 'stroke-width': 1.5 }, og);
+      endLabel('GOAL ' + fmtSigned(cfg.reward_goal));
+      refs.arrows.push(null);
+    } else if (name === cfg.boundary) {
+      sv('rect', { x: -12, y: -12, width: 24, height: 24, rx: 4, fill: 'none', stroke: 'var(--critical)', 'stroke-width': 2.5 }, og);
+      sv('path', { d: 'M-6,-6L6,6M6,-6L-6,6', stroke: 'var(--critical)', 'stroke-width': 2.5, 'stroke-linecap': 'round' }, og);
+      endLabel('END ' + fmtSigned(cfg.reward_boundary));
+      refs.arrows.push(null);
+    } else {
+      const ag = sv('g', {}, og);
+      const path = sv('path', { d: 'M-16,-9 L4,-9 4,-17 18,0 4,17 4,9 -16,9Z', fill: 'var(--ink-2)', stroke: 'var(--surface)', 'stroke-width': 1.5, 'stroke-linejoin': 'round' }, ag);
+      const q = sv('text', { x: 0, y: 5, 'text-anchor': 'middle', 'font-size': 15, 'font-weight': 700, fill: 'var(--muted)' }, og);
+      q.textContent = '?';
+      refs.arrows.push({ ag, path, q, name });
+    }
+  });
+
+  // the arm (drawn pointing straight up, then rotated); the sensor sits over the brick
+  const arm = sv('g', { id: 'arm', style: `transform-origin:${cx}px ${cy}px; transform: rotate(0deg)` }, svg);
+  sv('line', { x1: cx, y1: cy, x2: cx, y2: cy - (R - 12), stroke: 'var(--ink-2)', 'stroke-width': 7, 'stroke-linecap': 'round' }, arm);
+  sv('rect', { x: cx - 11, y: cy - R - 8, width: 22, height: 16, rx: 4, fill: 'var(--ink)', stroke: 'var(--surface)', 'stroke-width': 1.5 }, arm);
+  refs.sensorDot = sv('circle', { cx, cy: cy - R, r: 4.5, fill: 'var(--muted)', stroke: 'var(--surface)', 'stroke-width': 1.2 }, arm);
+  refs.arm = arm;
+  // brick names inside the arc, on top of the arm with a halo so they stay readable
+  slots.forEach((node, i) => {
+    if (node === null) return;
+    const [lx, ly] = pt(R - 44, angles[i]);
+    const lt = sv('text', { x: lx, y: ly + 4, 'text-anchor': 'middle', 'font-size': 11.5, fill: 'var(--ink-2)',
+      stroke: 'var(--surface)', 'stroke-width': 4, 'paint-order': 'stroke', 'stroke-linejoin': 'round' }, svg);
+    lt.textContent = titleCase(nodeColor(node));
+    refs.labels.push(lt);
+  });
+  // the hub at the pivot
+  const hub = sv('g', {}, svg);
+  sv('rect', { x: cx - 32, y: cy - 30, width: 64, height: 56, rx: 10, fill: 'var(--surface-2)', stroke: 'var(--border-2)', 'stroke-width': 1.5 }, hub);
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++)
+    sv('rect', { x: cx - 13 + c * 9, y: cy - 19 + r * 9, width: 6, height: 6, rx: 1.5, fill: 'var(--axis)' }, hub);
+  sv('circle', { cx, cy, r: 6, fill: 'var(--ink-2)' }, hub);
+  ui.track = refs;
+}
+
+function brickTip(e, i) {
+  const s = store.search, cfg = s.cfg || DEFAULT_SEARCH_CFG;
+  const name = nodeColor(ui.track.slots[i]);
+  if (name === cfg.goal) return showTip(e, titleCase(name) + ' · goal', [{ k: 'Reward', v: fmtSigned(cfg.reward_goal) }, { k: 'Episode', v: 'ends here' }]);
+  if (name === cfg.boundary) return showTip(e, titleCase(name) + ' · boundary', [{ k: 'Reward', v: fmtSigned(cfg.reward_boundary) }, { k: 'Episode', v: 'ends here' }]);
+  const si = s.states.indexOf(name);
+  const row = si >= 0 && s.q[si] ? s.q[si] : [0, 0];
+  showTip(e, titleCase(name), [{ k: 'Q(LEFT)', v: fmt(row[0]) }, { k: 'Q(RIGHT)', v: fmt(row[1]) },
+    { k: 'Best', v: row[0] === row[1] ? 'tie' : row[0] > row[1] ? 'LEFT' : 'RIGHT' }]);
+}
+
+function renderSearch() {
+  const s = store.search;
+  const placeholder = !s.cfg;
+  const cfg = s.cfg || DEFAULT_SEARCH_CFG;
+  const layout = placeholder ? DEFAULT_LAYOUT : searchLayout(s);
+  const states = placeholder ? DEFAULT_STATES : s.states;
+  const q = placeholder ? DEFAULT_STATES.map(() => [0, 0]) : s.q;
+  const qRow = name => { const i = states.indexOf(name); return i >= 0 && q[i] ? q[i] : [0, 0]; };
+
+  $('#trackWrap').classList.toggle('is-placeholder', placeholder);
+  const note = $('#trackNote');
+  note.classList.toggle('hidden', !(placeholder || layout.length === 0));
+  note.firstElementChild.textContent = placeholder
+    ? 'Your track appears here when the 1D Color Search program is running on the hub.'
+    : 'No bricks found yet. They appear here as the robot discovers them.';
+
+  // rebuild the drawing when the map changes; keep the arm where it was so it glides
+  const key = JSON.stringify(layout) + cfg.goal + cfg.boundary + (document.documentElement.dataset.theme || '');
+  if (ui.trackBuiltKey !== key) {
+    const prevArm = ui.track && ui.track.arm ? ui.track.arm.style.transform : null;
+    buildTrack(layout, cfg);
+    if (prevArm) {
+      ui.track.arm.style.transition = 'none';
+      ui.track.arm.style.transform = prevArm;
+      ui.track.arm.getBoundingClientRect();
+      ui.track.arm.style.transition = '';
+    }
+    ui.trackBuiltKey = key;
+  }
+  const T = ui.track;
+
+  // policy arrows
+  let maxGap = 0;
+  q.forEach(r => { maxGap = Math.max(maxGap, Math.abs((r[1] || 0) - (r[0] || 0))); });
+  T.arrows.forEach(A => {
+    if (!A) return;
+    const row = qRow(A.name);
+    if (row[0] === row[1]) {
+      A.ag.setAttribute('opacity', 0); A.q.setAttribute('opacity', 1);
+    } else {
+      const conf = maxGap ? Math.abs(row[1] - row[0]) / maxGap : 0;
+      const dir = row[1] > row[0] ? 1 : -1;
+      A.ag.setAttribute('transform', `scale(${dir * (0.75 + 0.35 * conf)}, ${0.75 + 0.35 * conf})`);
+      A.ag.setAttribute('opacity', (0.35 + 0.65 * conf).toFixed(2));
+      A.path.setAttribute('fill', 'var(--ink)');
+      A.q.setAttribute('opacity', 0);
+    }
+  });
+
+  // arm + highlighted brick
+  const posIdx = s.posNode ? layout.indexOf(s.posNode) : -1;
+  const pos = posIdx >= 0 ? posIdx : null;
+  const choose = s.choose;
+  T.bricks.forEach((b, i) => { if (b) b.ring.setAttribute('opacity', i === pos ? 1 : 0); });
+  if (pos != null) {
+    let angle = T.angles[pos];
+    T.arm.classList.toggle('sweeping', !!choose);
+    if (choose) {   // moving: glide toward the next brick while the hub sweeps
+      const next = pos + (choose.action === 'LEFT' ? -1 : 1);
+      if (next >= 0 && next < layout.length && layout[next] !== null) angle += (T.angles[next] - T.angles[pos]) * 0.7;
+      else angle += (choose.action === 'LEFT' ? 1 : -1) * T.spacing * 0.7;   // heading into the unknown
+    }
+    T.arm.style.transform = `rotate(${90 - angle}deg)`;
+    T.arm.style.opacity = 1;
+    T.sensorDot.setAttribute('fill', choose ? 'var(--muted)' : brickColor(nodeColor(layout[pos])));
+  } else {
+    T.arm.style.opacity = placeholder ? 1 : 0.35;
+    T.sensorDot.setAttribute('fill', 'var(--muted)');
+  }
+
+  // status line
+  const st = $('#searchStatus');
+  if (choose) {
+    st.replaceChildren(h('b', {}, choose.action === 'LEFT' ? '← Sweeping LEFT' : 'Sweeping RIGHT →'), ' ',
+      choose.explore ? h('span', { class: 'tag explore' }, 'random move · exploring') : h('span', { class: 'tag exploit' }, 'best move it knows'));
+  } else if (s.cur) {
+    st.textContent = s.cur.steps.length ? 'Deciding the next move…' : 'Starting…';
+  } else {
+    st.textContent = placeholder ? '' : 'Waiting for the next run.';
+  }
+
+  // path chips (current run, or the last finished one)
+  const run = s.cur || s.runs[s.runs.length - 1];
+  const path = $('#searchPath');
+  path.replaceChildren();
+  if (run && run.start) {
+    path.appendChild(h('span', { class: 'muted' }, s.cur ? 'This run:' : 'Last run:'));
+    path.appendChild(colorChip(run.start, h('span', { class: 'rw' }, 'start')));
+    for (const step of run.steps) {
+      path.appendChild(h('span', { class: 'arrow' }, step.action === 'LEFT' ? '←' : '→', step.explore ? h('span', { class: 'q', title: 'random move' }, '?') : null));
+      path.appendChild(colorChip(step.next, h('span', { class: 'rw' }, fmtSigned(step.reward))));
+    }
+    if (run.result) path.appendChild(resultBadge(run));
+  }
+
+  renderSearchQ(cfg, states, q, layout, placeholder);
+  renderSearchExplain(cfg);
+  renderSearchTiles(cfg, states, q, layout);
+  renderSearchChart(cfg, layout);
+}
+
+function resultBadge(run) {
+  const r = run.result;
+  const total = run.total !== undefined ? ' · total ' + fmtSigned(run.total) : '';
+  if (r === 'goal') return h('span', { class: 'result goal' }, '✓ Goal' + total);
+  if (r === 'boundary') return h('span', { class: 'result boundary' }, '✕ Boundary' + total);
+  if (r === 'max_steps') return h('span', { class: 'result other' }, '… Out of steps' + total);
+  if (r === 'stopped') return h('span', { class: 'result other' }, '■ Stopped');
+  if (r === 'lost') return h('span', { class: 'result other' }, '? Lost the track');
+  return h('span', { class: 'result other' }, r);
+}
+
+function renderSearchQ(cfg, states, q, layout, placeholder) {
+  const s = store.search;
+  const tbl = $('#qtableSearch');
+  let maxAbs = 0; q.forEach(r => r.forEach(v => { maxAbs = Math.max(maxAbs, Math.abs(v)); }));
+  const curState = s.choose ? s.choose.state : (s.cur ? nodeColor(s.posNode) : null);
+  const head = h('tr', {}, h('th', { class: 'rowh' }, 'Color (state)'), h('th', {}, '← LEFT'), h('th', {}, 'RIGHT →'), h('th', {}, 'Best move'));
+  // rows in track order (left to right) once the map knows where a brick is
+  const where = si => { const i = layout.indexOf(states[si]); return i < 0 ? 1e6 + si : i; };
+  const order = states.map((_, si) => si).sort((a, b) => where(a) - where(b));
+  const rows = order.map(si => {
+    const name = states[si];
+    const row = q[si] || [0, 0];
+    const best = row[0] === row[1] ? -1 : row[0] > row[1] ? 0 : 1;
+    const cells = row.map((v, ai) => {
+      const c = qColor(v, maxAbs);
+      const flash = s.lastUpdated && s.lastUpdated.si === si && s.lastUpdated.ai === ai && s.lastUpdated.seq > store.seq - 4;
+      return h('td', { class: (ai === best ? 'best ' : '') + (flash ? 'flash' : ''), style: { background: c.bg, color: c.fg } }, fmt(v));
+    });
+    const bestTxt = best < 0 ? (row[0] === 0 ? 'not learned yet' : 'tie') : best === 0 ? '← LEFT' : 'RIGHT →';
+    return h('tr', { class: name === curState ? 'current' : '' },
+      h('td', { class: 'rowh' }, swatch(name), titleCase(name)), ...cells, h('td', { class: 'ink2', style: { fontSize: '13px' } }, bestTxt));
+  });
+  if (!rows.length) rows.push(h('tr', {}, h('td', { colspan: 4, class: 'muted', style: { textAlign: 'left', padding: '12px 4px' } },
+    'Empty for now. Each new color the robot finds adds a row.')));
+  tbl.replaceChildren(h('thead', {}, head), h('tbody', {}, rows));
+  legendKeys($('#legendSearchQ'), [
+    { type: 'ramp', color: rampCSS(), label: 'bad move ← 0 → good move' },
+    { type: 'glyph', glyph: '▢', color: 'var(--ink)', label: 'best move' },
+  ]);
+  const ignored = cfg.ignore.length ? ` Not bricks (ignored): ${cfg.ignore.map(titleCase).join(', ')}.` : '';
+  $('#searchQNote').textContent = placeholder ? 'Example layout. Your Q-table appears when the program runs.'
+    : `The table starts empty and gets a row for each new color the robot finds. ${titleCase(cfg.goal)} (goal, ${fmtSigned(cfg.reward_goal)}) and ${titleCase(cfg.boundary)} (ends, ${fmtSigned(cfg.reward_boundary)}) finish the episode, so they have no row. Every other move earns ${fmtSigned(cfg.reward_step)}.${ignored}`;
+}
+
+function explainUpdate(box, step, alpha, gamma, labelQ, nextLabel) {
+  // Three lines: target, surprise, new value
+  const done = step.reward !== undefined && step.best_next === 0 && step.endsEpisode;
+  const target = step.reward + gamma * step.best_next;
+  const surprise = target - step.old;
+  const p = v => (v < 0 && Number(Math.abs(v).toFixed(2)) !== 0 ? `(${fmt(v)})` : fmt(v));   // (−1.50) after an operator
+  box.appendChild(h('table', { class: 'eq' }, h('tbody', {},
+    h('tr', {}, h('td', {}, 'Target', h('small', {}, done ? 'reward (the episode ended, so no future)' : `reward + γ × best Q on ${nextLabel}`)),
+      h('td', {}, done ? h('b', {}, fmt(step.reward)) : [`${fmt(step.reward, 0)} + ${fmt(gamma, 2)} × ${p(step.best_next)} = `, h('b', {}, fmt(target))])),
+    h('tr', {}, h('td', {}, 'Surprise', h('small', {}, 'target − old Q')),
+      h('td', {}, `${fmt(target)} − ${p(step.old)} = `, h('b', {}, fmt(surprise)))),
+    h('tr', {}, h('td', {}, `New ${labelQ}`, h('small', {}, 'old Q + α × surprise')),
+      h('td', {}, `${fmt(step.old)} + ${fmt(alpha, 2)} × ${p(surprise)} = `, h('b', {}, fmt(step.new))))
+  )));
+}
+
+function renderSearchExplain(cfg) {
+  const s = store.search;
+  const box = $('#explainSearch');
+  box.replaceChildren();
+  const step = s.last;
+  const choose = s.choose;
+  const testing = s.cur ? s.cur.mode === 'test' : (step && step.new === null);
+  if (choose) {
+    const row = choose.q || [0, 0];
+    const tie = row[0] === row[1];
+    box.appendChild(h('div', { class: 'what' }, 'On ', colorChip(choose.state), ' the Q-table says ',
+      h('b', {}, `LEFT ${fmt(row[0])}`), ', ', h('b', {}, `RIGHT ${fmt(row[1])}`), '. ',
+      choose.explore ? [h('span', { class: 'tag explore' }, 'Random move'), ` Exploring (ε = ${fmt(s.cur && s.cur.epsilon != null ? s.cur.epsilon : cfg.epsilon)}): trying `, h('b', {}, choose.action), '.']
+        : tie ? [h('span', { class: 'tag tie' }, 'Tie'), ' Both moves score the same, so it picks one at random: ', h('b', {}, choose.action), '.']
+        : [h('span', { class: 'tag exploit' }, 'Best move'), ' Going ', h('b', {}, choose.action), '.']));
+    if (step) box.appendChild(h('div', { class: 'muted', style: { fontSize: '13px' } }, 'Moving… the result will appear here.'));
+    return;
+  }
+  if (!step) {
+    box.appendChild(h('span', { class: 'muted' }, s.cur ? 'Starting the run…' : 'Nothing yet. Start a run on the hub.'));
+    return;
+  }
+  const how = step.explore ? h('span', { class: 'tag explore' }, 'random move')
+    : (step.choiceQ && step.choiceQ[0] === step.choiceQ[1]) ? h('span', { class: 'tag tie' }, 'tie, picked at random')
+    : h('span', { class: 'tag exploit' }, 'best move');
+  box.appendChild(h('div', { class: 'what' }, 'On ', colorChip(step.state), ' it chose ', h('b', {}, step.action), ' ', how,
+    ', landed on ', colorChip(step.next), ' and got ', h('b', {}, fmtSigned(step.reward)), '.'));
+  if (step.new === null || testing) {
+    box.appendChild(h('div', { class: 'muted', style: { fontSize: '13.5px' } }, 'Testing: the robot only uses its Q-table. It does not change it.'));
+    return;
+  }
+  box.appendChild(h('div', { style: { fontSize: '13.5px' } }, 'So it updates ', h('b', {}, `Q(${titleCase(step.state)}, ${step.action})`), ':'));
+  const ends = step.next === cfg.goal || step.next === cfg.boundary;
+  explainUpdate(box, Object.assign({ endsEpisode: ends }, step), cfg.alpha, cfg.gamma, 'Q', titleCase(step.next));
+}
+
+function tile(label, value, sub, meter) {
+  return h('div', { class: 'tile' }, h('div', { class: 't-label' }, label), h('div', { class: 't-value' }, value),
+    sub ? h('div', { class: 't-sub' }, sub) : null,
+    meter !== undefined ? h('div', { class: 'meter' }, h('i', { style: { width: clamp(meter, 0, 1) * 100 + '%' } })) : null);
+}
+
+function renderSearchTiles(cfg, states, q, layout) {
+  const s = store.search;
+  const trained = s.runs.filter(r => r.mode === 'train').length + (s.cur && s.cur.mode === 'train' ? 1 : 0);
+  const recent = s.runs.filter(r => r.result !== 'stopped').slice(-5);
+  const goals = recent.filter(r => r.result === 'goal').length;
+  let right = 0, known = 0;
+  states.forEach((name, si) => {
+    const row = q[si] || [0, 0], want = correctMoveFor(s, layout, name);
+    if (want) known++;
+    if (want && row[0] !== row[1] && want === (row[1] > row[0] ? 'RIGHT' : 'LEFT')) right++;
+  });
+  const ends = layout.filter(n => n && (n.endsWith('@L') || n.endsWith('@R'))).length;
+  const goalSeen = layout.includes(cfg.goal);
+  $('#tilesSearch').replaceChildren(
+    tile('Training episodes', String(trained), s.runs.length ? `${s.runs.length - s.runs.filter(r => r.mode === 'train').length} test run(s) too` : 'Press RIGHT on the hub to train'),
+    tile('Goal found, last 5 runs', recent.length ? `${goals} / ${recent.length}` : '–', recent.length ? 'Training and test runs' : 'No runs yet'),
+    tile('Colors discovered', String(states.length), `goal ${goalSeen ? 'found ✓' : 'not found yet'} · ${ends} of 2 ends found`),
+    tile('Bricks pointing the right way', `${right} / ${states.length}`,
+      known < states.length ? `${states.length - known} not yet placed relative to the goal` : 'Best move leads toward the goal',
+      states.length ? right / states.length : 0),
+    tile('Learning settings', `ε ${fmt(cfg.epsilon, 2)}`, `exploration · α ${fmt(cfg.alpha, 2)} learning rate · γ ${fmt(cfg.gamma, 2)} discount`)
+  );
+}
+
+function renderSearchChart(cfg, layout) {
+  const s = store.search;
+  const box = $('#chartSearch');
+  const runs = s.runs;
+  runs.forEach(r => { r.shortest = shortestFor(s, layout, r.start); });
+  const trainC = cssVar('--train'), testC = cssVar('--test');
+  legendKeys($('#legendSearchRuns'), [
+    { color: trainC, label: 'Training run' }, { color: testC, label: 'Test run' },
+    { type: 'line', color: cssVar('--ink'), label: 'Shortest possible' },
+    { type: 'glyph', glyph: '✓', color: 'var(--good)', label: 'goal' },
+    { type: 'glyph', glyph: '✕', color: 'var(--critical)', label: 'boundary' },
+    { type: 'glyph', glyph: '…', color: 'var(--muted)', label: 'out of steps / stopped' },
+  ]);
+  renderDataTable('chartSearch', ['Run', 'Type', 'Start', 'Steps', 'Shortest', 'Result', 'Total reward'],
+    runs.map(r => [String(r.run), r.mode === 'train' ? `Training ep ${r.ep}` : 'Test', titleCase(r.start || '–'),
+      String(r.nsteps), r.shortest == null ? '–' : String(r.shortest), r.result, fmtSigned(r.total)]));
+  if (!runs.length) return emptyChart(box, 'Each finished run adds a column here.');
+  const { svg, width, height } = chartFrame(box, 240);
+  const m = { l: 34, r: 10, t: 24, b: 30 };
+  const pw = width - m.l - m.r, ph = height - m.t - m.b;
+  const yMax = Math.max(cfg.max_steps || 1, ...runs.map(r => r.nsteps || 0));
+  const ticks = niceTicks(0, yMax, 4);
+  const top = ticks[ticks.length - 1];
+  const y = v => m.t + ph - (v / top) * ph;
+  ticks.forEach(t => {
+    sv('line', { x1: m.l, x2: width - m.r, y1: y(t), y2: y(t), stroke: t === 0 ? 'var(--axis)' : 'var(--grid)', 'stroke-width': 1 }, svg);
+    sv('text', { x: m.l - 6, y: y(t) + 4, 'text-anchor': 'end' }, svg).textContent = t;
+  });
+  const band = pw / runs.length;
+  const bw = clamp(band * 0.7, 3, 24);
+  const every = Math.ceil(runs.length / Math.max(1, Math.floor(pw / 34)));
+  runs.forEach((r, i) => {
+    const x = m.l + band * i + (band - bw) / 2;
+    const val = r.nsteps || 0;
+    const color = r.mode === 'train' ? trainC : testC;
+    if (val > 0) sv('path', { d: columnPath(x, bw, y(0), y(val)), fill: color }, svg);
+    if (r.shortest != null) sv('line', { x1: x - 3, x2: x + bw + 3, y1: y(r.shortest), y2: y(r.shortest), stroke: 'var(--ink)', 'stroke-width': 2, 'stroke-linecap': 'round' }, svg);
+    const glyph = r.result === 'goal' ? ['✓', 'var(--good)'] : r.result === 'boundary' ? ['✕', 'var(--critical)'] : ['…', 'var(--muted)'];
+    sv('text', { x: x + bw / 2, y: y(val) - 6, 'text-anchor': 'middle', style: `fill:${glyph[1]};font-weight:700;font-size:12px` }, svg).textContent = glyph[0];
+    if (i % every === 0 || i === runs.length - 1)
+      sv('text', { x: x + bw / 2, y: height - m.b + 16, 'text-anchor': 'middle' }, svg).textContent = r.run;
+    const hit = sv('rect', { x: m.l + band * i, y: m.t, width: band, height: ph, fill: 'transparent' }, svg);
+    hit.addEventListener('pointermove', e => {
+      showTip(e, `Run ${r.run} · ${r.mode === 'train' ? 'training ep ' + r.ep : 'test'}`, [
+        { k: 'Start', v: titleCase(r.start || '–') }, { k: 'Steps', v: String(val), color },
+        { k: 'Shortest possible', v: r.shortest == null ? '–' : String(r.shortest) },
+        { k: 'Result', v: r.result }, { k: 'Total reward', v: fmtSigned(r.total) }]);
+    });
+    hit.addEventListener('pointerleave', hideTip);
+  });
+  sv('text', { x: m.l + pw / 2, y: height - 2, 'text-anchor': 'middle' }, svg).textContent = 'run number';
+}
+
+/* =====================================================================
+   RENDERING - Smart Walker
+   ===================================================================== */
+const ZONE_COLORS = ['--good', '--warning', '--serious', '--critical'];
+function zoneColor(z) { return 'var(' + ZONE_COLORS[Math.min(z, ZONE_COLORS.length - 1)] + ')'; }
+/** The dial is not to scale: zones near straight get more room so students can see them.
+    Real zone edges (e.g. 0, 5, 20, 40, 180 degrees) map to dial angles (0, 15, 45, 75, 180). */
+function makeDialMap(cfg) {
+  const e = cfg.edges.filter((v, i, arr) => v > 0 && v < 180 && (i === 0 || v > arr[i - 1]));
+  const src = [0, ...e, 180];
+  const step = Math.min(30, 135 / Math.max(1, e.length));
+  const dst = [0, ...e.map((_, k) => 15 + step * k), 180];
+  return h0 => {
+    const a = Math.min(180, Math.abs(h0));
+    let k = 0;
+    while (k < src.length - 2 && a > src[k + 1]) k++;
+    const t = (a - src[k]) / (src[k + 1] - src[k] || 1);
+    return Math.sign(h0) * (dst[k] + t * (dst[k + 1] - dst[k]));
+  };
+}
+let dialMap = h0 => h0;
+function dialPt(r, hdeg) {
+  const a = dialMap(hdeg) * Math.PI / 180, sx = ui.mirror ? 1 : -1;
+  return [sx * r * Math.sin(a), -r * Math.cos(a)];
+}
+function sectorPath(r0, r1, h0, h1) {
+  const [x0, y0] = dialPt(r1, h0), [x1, y1] = dialPt(r1, h1), [x2, y2] = dialPt(r0, h1), [x3, y3] = dialPt(r0, h0);
+  const large = Math.abs(dialMap(h1) - dialMap(h0)) > 180 ? 1 : 0;
+  const sweepOut = (h1 > h0) !== ui.mirror ? 0 : 1;
+  const sweepIn = sweepOut ? 0 : 1;
+  return `M${x0},${y0} A${r1},${r1} 0 ${large} ${sweepOut} ${x1},${y1} L${x2},${y2} A${r0},${r0} 0 ${large} ${sweepIn} ${x3},${y3}Z`;
+}
+function walkerStateLabel(cfg, state) {
+  const z = Math.abs(state), e = cfg.edges;
+  if (z === 0) return `straight, within ±${e[0]}°`;
+  const sign = state > 0 ? '+' : MINUS;
+  if (z >= e.length) return `beyond ${sign}${e[e.length - 1]}°`;
+  return `${sign}${e[z - 1]}° to ${sign}${e[z]}°`;
+}
+
+function buildDial(cfg) {
+  const svg = $('#dialSvg');
+  svg.replaceChildren();
+  dialMap = makeDialMap(cfg);
+  const r0 = 74, r1 = 132, edges = cfg.edges;
+  const bounds = [0, ...edges, 180];
+  for (let z = 0; z < bounds.length - 1; z++) {
+    const reward = cfg.rewards[cfg.states.indexOf(z)] !== undefined ? cfg.rewards[cfg.states.indexOf(z)] : null;
+    const sides = z === 0 ? [[-bounds[1], bounds[1]]] : [[bounds[z], bounds[z + 1]], [-bounds[z + 1], -bounds[z]]];
+    for (const [a, b] of sides) {
+      sv('path', { d: sectorPath(r0, r1, a, b), fill: zoneColor(z), 'fill-opacity': 0.28, stroke: 'var(--surface)', 'stroke-width': 2 }, svg);
+      const mid = z === bounds.length - 2 ? (a > 0 ? 100 : -100) : (a + b) / 2;
+      const [tx, ty] = dialPt(r1 + 17, mid);
+      if (reward !== null) {
+        const t = sv('text', { x: tx, y: ty + 4, 'text-anchor': 'middle', 'font-size': 12.5, 'font-weight': 650, fill: 'var(--ink-2)' }, svg);
+        t.textContent = fmtSigned(reward);
+      }
+    }
+  }
+  // state numbers inside the ring
+  for (const st of cfg.states) {
+    const z = Math.abs(st);
+    const a = z === 0 ? 0 : (z === bounds.length - 2 ? 70 : (bounds[z] + bounds[z + 1]) / 2) * Math.sign(st);
+    const [tx, ty] = dialPt((r0 + r1) / 2, a);
+    sv('text', { x: tx, y: ty + 4, 'text-anchor': 'middle', 'font-size': 11.5, fill: 'var(--ink)', 'font-weight': 700 }, svg).textContent = st > 0 ? '+' + st : String(st).replace('-', MINUS);
+  }
+  // give-up ticks
+  for (const sgn of [1, -1]) {
+    const [ax, ay] = dialPt(r1 + 2, sgn * cfg.give_up), [bx, by] = dialPt(r1 + 12, sgn * cfg.give_up);
+    sv('line', { x1: ax, y1: ay, x2: bx, y2: by, stroke: 'var(--ink-2)', 'stroke-width': 2 }, svg);
+  }
+  const [gx, gy] = dialPt(r1 + 26, cfg.give_up);
+  sv('text', { x: gx, y: gy + 4, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' }, svg).textContent = 'stop';
+  // target flag
+  sv('line', { x1: 0, y1: -r1 - 28, x2: 0, y2: -r1 - 50, stroke: 'var(--ink)', 'stroke-width': 2 }, svg);
+  sv('path', { d: `M0,${-r1 - 50} l15,5 -15,5z`, fill: 'var(--ink)' }, svg);
+  sv('text', { x: -6, y: -r1 - 38, 'text-anchor': 'end', 'font-size': 12, 'font-weight': 650, fill: 'var(--ink-2)' }, svg).textContent = 'target';
+  sv('circle', { cx: 0, cy: 0, r: r0 - 6, fill: 'var(--surface-2)', stroke: 'var(--border)' }, svg);
+  // trail of recent headings
+  const trail = sv('g', {}, svg);
+  // robot (drawn facing up)
+  const rot = sv('g', { class: 'robot-rot', style: 'transform: rotate(0deg)' }, svg);
+  sv('line', { x1: 0, y1: -26, x2: 0, y2: -r1 + 4, stroke: 'var(--ink)', 'stroke-width': 2.5, 'stroke-linecap': 'round' }, rot);
+  sv('path', { d: `M0,${-r1 + 2} l-6,11 h12z`, fill: 'var(--ink)' }, rot);
+  sv('rect', { x: -27, y: -14, width: 9, height: 26, rx: 3, fill: 'var(--ink-2)' }, rot);
+  sv('rect', { x: 18, y: -14, width: 9, height: 26, rx: 3, fill: 'var(--ink-2)' }, rot);
+  sv('rect', { x: -18, y: -24, width: 36, height: 46, rx: 8, fill: 'var(--surface)', stroke: 'var(--ink-2)', 'stroke-width': 2 }, rot);
+  sv('path', { d: 'M-7,-12 L0,-19 7,-12', fill: 'none', stroke: 'var(--ink-2)', 'stroke-width': 2.2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, rot);
+  ui.dial = { rot, trail };
+}
+
+function renderWalker() {
+  const w = store.walker;
+  const cfg = w.cfg || DEFAULT_WALKER_CFG;
+  const placeholder = !w.cfg;
+  $('#dialWrap').classList.toggle('is-placeholder', placeholder);
+  $('#dialNote').classList.toggle('hidden', !placeholder);
+  const key = w.cfgKey + '|' + ui.mirror + '|' + document.documentElement.dataset.theme;
+  if (ui.dialBuiltKey !== key) { buildDial(cfg); ui.dialBuiltKey = key; }
+
+  // heading
+  const heading = w.heading !== null ? w.heading : 0;
+  ui.dial.rot.style.transform = `rotate(${(ui.mirror ? 1 : -1) * dialMap(heading)}deg)`;
+  const trail = ui.dial.trail; trail.replaceChildren();
+  const tr = w.cur ? w.cur.trace : (w.runs.length ? w.runs[w.runs.length - 1].trace : []);
+  tr.slice(-12).forEach((st, i, arr) => {
+    const [x, y] = dialPt(122, st.next_heading);
+    sv('circle', { cx: x, cy: y, r: 4, fill: 'var(--ink)', 'fill-opacity': ((i + 1) / arr.length * 0.6).toFixed(2), stroke: 'var(--surface)', 'stroke-width': 1.5 }, trail);
+  });
+  const st = w.last ? w.last.next : 0;
+  $('#dialText').replaceChildren(w.heading === null ? h('span', { class: 'muted' }, placeholder ? '' : 'Waiting for the next run.')
+    : h('span', {}, h('b', {}, `${fmt(heading, 0)}°`), ' · state ', h('b', {}, st > 0 ? '+' + st : String(st).replace('-', MINUS)),
+      ' · reward ', h('b', {}, fmtSigned(walkerReward(cfg, st)))));
+
+  renderLegs(cfg);
+  renderWalkerExplain(cfg);
+  renderWalkerTiles(cfg);
+  renderTrace(cfg);
+  renderPath(cfg);
+  renderRewardChart(cfg);
+  renderWalkerQ(cfg, placeholder);
+}
+
+function renderLegs(cfg) {
+  const w = store.walker, box = $('#legsBox');
+  box.replaceChildren();
+  const step = w.last;
+  const maxSpeed = Math.max(1, ...cfg.speeds);
+  const W = 260, H = 142;
+  const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, width: '100%', style: 'max-width:300px;margin:0 auto', role: 'img',
+    'aria-label': step ? `Left leg ${step.left}, right leg ${step.right}` : 'Leg speeds' }, box);
+  const bars = [['Left leg', step ? step.left : 0, 60], ['Right leg', step ? step.right : 0, 160]];
+  for (const [label, val, x] of bars) {
+    const top = 14, base = 100, bh = (val / maxSpeed) * (base - top);
+    sv('rect', { x, y: top, width: 40, height: base - top, rx: 6, fill: 'var(--surface-2)', stroke: 'var(--border)' }, svg);
+    if (val > 0) sv('path', { d: columnPath(x, 40, base, base - bh), fill: 'var(--train)' }, svg);
+    sv('text', { x: x + 20, y: base + 16, 'text-anchor': 'middle', 'font-size': 12, fill: 'var(--ink-2)' }, svg).textContent = label;
+    sv('text', { x: x + 20, y: base + 30, 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700, fill: 'var(--ink)' }, svg).textContent = step ? `${val}°/s` : '–';
+  }
+  if (step) {
+    const tag = step.explore ? h('span', { class: 'tag explore' }, 'random · exploring')
+      : step.tie ? h('span', { class: 'tag tie' }, 'tie · picked at random') : h('span', { class: 'tag exploit' }, 'best it knows');
+    box.appendChild(h('div', { style: { textAlign: 'center', fontSize: '13px' }, class: 'ink2' }, `Action #${step.action} of ${cfg.actions.length} `, tag));
+  }
+}
+
+function renderWalkerExplain(cfg) {
+  const w = store.walker, box = $('#explainWalker');
+  box.replaceChildren();
+  const step = w.last;
+  if (!step) { box.appendChild(h('span', { class: 'muted' }, w.cur ? 'Starting the run…' : 'Nothing yet. Start a run on the hub.')); return; }
+  const sl = s => (s > 0 ? '+' + s : String(s).replace('-', MINUS));
+  box.appendChild(h('div', { class: 'what' }, 'In state ', h('b', {}, sl(step.state)), ` (${walkerStateLabel(cfg, step.state)}) it ran the legs at `,
+    h('b', {}, `L${step.left} R${step.right}`), ', ended in state ', h('b', {}, sl(step.next)), ' and got ', h('b', {}, fmtSigned(step.reward)), '.'));
+  const testing = w.cur ? w.cur.mode === 'test' : step.new === null;
+  if (step.new === null || testing) {
+    box.appendChild(h('div', { class: 'muted', style: { fontSize: '13.5px' } }, 'Testing: the robot only uses its Q-table. It does not change it.'));
+    return;
+  }
+  explainUpdate(box, Object.assign({ endsEpisode: false }, step), cfg.alpha, cfg.gamma, 'Q', 'state ' + sl(step.next));
+}
+
+function renderWalkerTiles(cfg) {
+  const w = store.walker;
+  const trained = w.runs.filter(r => r.mode === 'train').length + (w.cur && w.cur.mode === 'train' ? 1 : 0);
+  const eps = w.epsilon !== null ? w.epsilon : cfg.epsilon_start;
+  const run = w.cur && w.cur.trace.length ? w.cur : w.runs[w.runs.length - 1];
+  const straight = run && run.trace.length ? run.trace.filter(s => s.next === 0).length / run.trace.length : null;
+  const lastTest = [...w.runs].reverse().find(r => r.mode === 'test');
+  $('#tilesWalker').replaceChildren(
+    tile('Training episodes', String(trained), w.runs.length ? `${w.runs.length - w.runs.filter(r => r.mode === 'train').length} test run(s) too` : 'Press RIGHT on the hub to train'),
+    tile('Exploration ε', fmt(eps, 2), `chance of a random action · drops to ${fmt(cfg.epsilon_min, 2)}`, eps),
+    tile(w.cur ? 'Straight steps, this run' : 'Straight steps, last run', straight === null ? '–' : Math.round(straight * 100) + '%', `steps ending within ±${cfg.edges[0]}°`),
+    tile('Last test', lastTest ? fmtSigned(lastTest.average, 1) : '–', lastTest ? `average reward per step (best: ${fmtSigned(cfg.rewards[cfg.states.indexOf(0)])})` : 'Press LEFT on the hub to test')
+  );
+}
+
+function renderTrace(cfg) {
+  const w = store.walker, box = $('#traceChart');
+  const cur = w.cur && w.cur.trace.length ? w.cur : null;
+  const done = w.runs.filter(r => r.trace && r.trace.length);
+  const main = cur || done[done.length - 1];
+  const prev = main ? done.filter(r => r !== main && r.mode === main.mode).slice(-1)[0] : null;
+  const modeColor = r => (r.mode === 'train' ? cssVar('--train') : cssVar('--test'));
+  legendKeys($('#legendTrace'), [
+    { type: 'line', color: cssVar('--train'), label: 'Training run' }, { type: 'line', color: cssVar('--test'), label: 'Test run' },
+    { type: 'line', color: cssVar('--axis'), label: 'Previous run of the same kind' },
+    { color: 'color-mix(in srgb, var(--good) 30%, transparent)', label: 'state 0 zone' },
+  ]);
+  $('#traceSub').textContent = main ? `Run ${main.run} · ${main.mode === 'train' ? 'training episode ' + main.ep : 'test'}${cur ? ' (live)' : ''}. Degrees away from straight at every step. Shaded bands are the state zones.`
+    : 'Degrees away from straight at every step. Shaded bands are the state zones.';
+  renderDataTable('traceChart', ['Step', 'Heading', 'State', 'Left', 'Right', 'Random?', 'Reward'],
+    main ? main.trace.map(s => [String(s.t), fmt(s.next_heading, 1) + '°', String(s.next), String(s.left), String(s.right), s.explore ? 'yes' : 'no', fmtSigned(s.reward)]) : []);
+  if (!main) return emptyChart(box, 'The heading of each run is drawn here, step by step.');
+  const { svg, width, height } = chartFrame(box, 260);
+  const m = { l: 40, r: 14, t: 12, b: 30 };
+  const pw = width - m.l - m.r, ph = height - m.t - m.b;
+  const xMax = Math.max(main.mode === 'train' ? cfg.train_steps : cfg.test_steps, main.trace.length);
+  const pts = r => [[0, r.startHeading || 0], ...r.trace.map(s => [s.t, s.next_heading])];
+  const allH = [main, prev].filter(Boolean).flatMap(r => pts(r).map(p => Math.abs(p[1])));
+  const lim = clamp(Math.ceil(Math.max(cfg.edges[cfg.edges.length - 1] + 10, ...allH) / 15) * 15, 30, 180);
+  const sg = ui.mirror ? -1 : 1;
+  const x = t => m.l + (t / xMax) * pw;
+  const y = v => m.t + ph / 2 - (sg * v / lim) * (ph / 2);
+  // zone bands
+  const bounds = [0, ...cfg.edges, lim];
+  for (let z = 0; z < bounds.length - 1; z++) {
+    const lo = Math.min(bounds[z], lim), hi = Math.min(bounds[z + 1], lim);
+    if (lo >= hi) continue;
+    for (const s of z === 0 ? [0] : [1, -1]) {
+      const a = z === 0 ? -hi : s * lo, b = z === 0 ? hi : s * hi;
+      sv('rect', { x: m.l, width: pw, y: Math.min(y(a), y(b)), height: Math.abs(y(a) - y(b)), fill: zoneColor(z), 'fill-opacity': z === 0 ? 0.16 : 0.08 }, svg);
+    }
+  }
+  niceTicks(-lim, lim, 4).filter(t => Math.abs(t) <= lim).forEach(t => {
+    sv('line', { x1: m.l, x2: width - m.r, y1: y(t), y2: y(t), stroke: t === 0 ? 'var(--axis)' : 'var(--grid)', 'stroke-width': 1 }, svg);
+    sv('text', { x: m.l - 6, y: y(t) + 4, 'text-anchor': 'end' }, svg).textContent = (t > 0 ? '+' : '') + fmt(t, 0) + '°';
+  });
+  niceTicks(0, xMax, 6).filter(t => t <= xMax).forEach(t => {
+    sv('text', { x: x(t), y: height - m.b + 16, 'text-anchor': 'middle' }, svg).textContent = t;
+  });
+  sv('text', { x: m.l + pw / 2, y: height - 2, 'text-anchor': 'middle' }, svg).textContent = 'step';
+  const line = (r, color, wdt, op) => {
+    const p = pts(r).map(([t, v]) => `${x(t).toFixed(1)},${y(clamp(v, -lim, lim)).toFixed(1)}`).join(' ');
+    sv('polyline', { points: p, fill: 'none', stroke: color, 'stroke-width': wdt, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: op }, svg);
+  };
+  if (prev) line(prev, cssVar('--axis'), 2, 1);
+  line(main, modeColor(main), 2, 1);
+  const lastP = pts(main)[pts(main).length - 1];
+  sv('circle', { cx: x(lastP[0]), cy: y(clamp(lastP[1], -lim, lim)), r: 5, fill: modeColor(main), stroke: 'var(--surface)', 'stroke-width': 2 }, svg);
+  // crosshair
+  const cross = sv('line', { y1: m.t, y2: m.t + ph, stroke: 'var(--ink-2)', 'stroke-width': 1, opacity: 0 }, svg);
+  const hit = sv('rect', { x: m.l, y: m.t, width: pw, height: ph, fill: 'transparent' }, svg);
+  hit.addEventListener('pointermove', e => {
+    const rect = svg.getBoundingClientRect();
+    const t = clamp(Math.round(((e.clientX - rect.left) - m.l) / pw * xMax), 1, Math.max(1, main.trace.length));
+    const s = main.trace[t - 1];
+    if (!s) return;
+    cross.setAttribute('x1', x(t)); cross.setAttribute('x2', x(t)); cross.setAttribute('opacity', 1);
+    const rows = [{ k: 'Heading', v: fmt(s.next_heading, 1) + '°', color: modeColor(main) }, { k: 'State', v: String(s.next) },
+      { k: 'Legs', v: `L${s.left} R${s.right}` }, { k: 'Random?', v: s.explore ? 'yes' : 'no' }, { k: 'Reward', v: fmtSigned(s.reward) }];
+    const ps = prev && prev.trace[t - 1];
+    if (ps) rows.push({ k: 'Previous run', v: fmt(ps.next_heading, 1) + '°', color: cssVar('--axis') });
+    showTip(e, `Step ${t}`, rows);
+  });
+  hit.addEventListener('pointerleave', () => { cross.setAttribute('opacity', 0); hideTip(); });
+}
+
+function walkerPathPoints(run) {
+  const pts = [[0, 0]];
+  let x = 0, y = 0, hPrev = run.startHeading || 0;
+  for (const s of run.trace) {
+    const hm = (hPrev + s.next_heading) / 2 * Math.PI / 180;
+    const stride = (s.left + s.right) / 2 / 100;
+    x += (ui.mirror ? 1 : -1) * Math.sin(hm) * stride;
+    y += Math.cos(hm) * stride;
+    pts.push([x, y]);
+    hPrev = s.next_heading;
+  }
+  return pts;
+}
+function renderPath(cfg) {
+  const w = store.walker, box = $('#pathChart');
+  const runs = w.runs.filter(r => r.trace && r.trace.length).slice(-4);
+  if (w.cur && w.cur.trace.length) runs.push(w.cur);
+  if (!runs.length) return emptyChart(box, 'Each run is drawn here as a path seen from above.');
+  const all = runs.map(r => ({ r, p: walkerPathPoints(r) }));
+  let minX = -1, maxX = 1, maxY = 1;
+  all.forEach(({ p }) => p.forEach(([a, b]) => { minX = Math.min(minX, a); maxX = Math.max(maxX, a); maxY = Math.max(maxY, b, -b * 0.3); }));
+  const minY = Math.min(0, ...all.flatMap(({ p }) => p.map(q => q[1])));
+  const { svg, width, height } = chartFrame(box, 300);
+  const pad = 26;
+  const spanX = Math.max(maxX - minX, (maxY - minY) * 0.4), spanY = maxY - minY;
+  const sc = Math.min((width - 2 * pad) / spanX, (height - 2 * pad - 14) / spanY);
+  const cxm = (minX + maxX) / 2;
+  const X = a => width / 2 + (a - cxm) * sc;
+  const Y = b => height - pad - (b - minY) * sc;
+  // straight-ahead guide
+  sv('line', { x1: X(0), x2: X(0), y1: Y(0), y2: pad - 6, stroke: 'var(--grid)', 'stroke-width': 2 }, svg);
+  sv('path', { d: `M${X(0)},${pad - 12} l-6,10 h12z`, fill: 'var(--axis)' }, svg);
+  sv('text', { x: X(0) + 10, y: pad - 2 }, svg).textContent = 'straight ahead';
+  all.forEach(({ r, p }, i) => {
+    const isLast = i === all.length - 1;
+    const color = isLast ? (r.mode === 'train' ? cssVar('--train') : cssVar('--test')) : cssVar('--axis');
+    sv('polyline', { points: p.map(([a, b]) => `${X(a).toFixed(1)},${Y(b).toFixed(1)}`).join(' '), fill: 'none', stroke: color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, svg);
+    const [ex, ey] = p[p.length - 1];
+    const dot = sv('circle', { cx: X(ex), cy: Y(ey), r: isLast ? 5 : 4, fill: color, stroke: 'var(--surface)', 'stroke-width': 2 }, svg);
+    const hit = sv('circle', { cx: X(ex), cy: Y(ey), r: 12, fill: 'transparent' }, svg);
+    hit.addEventListener('pointermove', e => showTip(e, `Run ${r.run} · ${r.mode === 'train' ? 'training ep ' + r.ep : 'test'}`,
+      [{ k: 'Steps', v: String(r.trace.length), color }, { k: 'Final heading', v: fmt(r.trace[r.trace.length - 1].next_heading, 0) + '°' }]));
+    hit.addEventListener('pointerleave', hideTip);
+    void dot;
+  });
+  sv('circle', { cx: X(0), cy: Y(0), r: 5, fill: 'var(--ink)', stroke: 'var(--surface)', 'stroke-width': 2 }, svg);
+  sv('text', { x: X(0) + 9, y: Y(0) + 4 }, svg).textContent = 'start';
+}
+
+function renderRewardChart(cfg) {
+  const w = store.walker, box = $('#rewardChart');
+  const runs = w.runs.filter(r => r.steps > 0);
+  const trainC = cssVar('--train'), testC = cssVar('--test');
+  legendKeys($('#legendReward'), [{ color: trainC, label: 'Training run' }, { color: testC, label: 'Test run' }]);
+  renderDataTable('rewardChart', ['Run', 'Type', 'Steps', 'Average reward', 'Result'],
+    runs.map(r => [String(r.run), r.mode === 'train' ? `Training ep ${r.ep}` : 'Test', String(r.steps), fmtSigned(r.average, 2), r.result]));
+  if (!runs.length) return emptyChart(box, 'Each finished run adds a column here.');
+  const { svg, width, height } = chartFrame(box, 260);
+  const m = { l: 36, r: 10, t: 14, b: 30 };
+  const pw = width - m.l - m.r, ph = height - m.t - m.b;
+  const lo = Math.min(...cfg.rewards, ...runs.map(r => r.average)), hi = Math.max(...cfg.rewards, ...runs.map(r => r.average));
+  const ticks = niceTicks(Math.min(lo, 0), Math.max(hi, 0), 5);
+  const t0 = ticks[0], t1 = ticks[ticks.length - 1];
+  const y = v => m.t + ph - ((v - t0) / (t1 - t0)) * ph;
+  ticks.forEach(t => {
+    sv('line', { x1: m.l, x2: width - m.r, y1: y(t), y2: y(t), stroke: t === 0 ? 'var(--axis)' : 'var(--grid)', 'stroke-width': 1 }, svg);
+    sv('text', { x: m.l - 6, y: y(t) + 4, 'text-anchor': 'end' }, svg).textContent = (t > 0 ? '+' : '') + fmt(t, 0);
+  });
+  const band = pw / runs.length, bw = clamp(band * 0.7, 3, 24);
+  const every = Math.ceil(runs.length / Math.max(1, Math.floor(pw / 30)));
+  runs.forEach((r, i) => {
+    const x = m.l + band * i + (band - bw) / 2;
+    const color = r.mode === 'train' ? trainC : testC;
+    if (r.average !== 0) sv('path', { d: columnPath(x, bw, y(0), y(r.average)), fill: color }, svg);
+    if (i % every === 0 || i === runs.length - 1) sv('text', { x: x + bw / 2, y: height - m.b + 16, 'text-anchor': 'middle' }, svg).textContent = r.run;
+    const hit = sv('rect', { x: m.l + band * i, y: m.t, width: band, height: ph, fill: 'transparent' }, svg);
+    hit.addEventListener('pointermove', e => showTip(e, `Run ${r.run} · ${r.mode === 'train' ? 'training ep ' + r.ep : 'test'}`,
+      [{ k: 'Average reward', v: fmtSigned(r.average, 2), color }, { k: 'Steps', v: String(r.steps) }, { k: 'Result', v: r.result }]));
+    hit.addEventListener('pointerleave', hideTip);
+  });
+  sv('text', { x: m.l + pw / 2, y: height - 2, 'text-anchor': 'middle' }, svg).textContent = 'run number';
+}
+
+function renderWalkerQ(cfg, placeholder) {
+  const w = store.walker, tbl = $('#qtableWalker');
+  const q = w.q || zeros(cfg.states.length, cfg.actions.length);
+  let maxAbs = 0; q.forEach(r => r.forEach(v => { maxAbs = Math.max(maxAbs, Math.abs(v)); }));
+  // columns sorted: right leg faster ... left leg faster
+  const order = cfg.actions.map((a, i) => i).sort((i, j) => {
+    const A = cfg.actions[i], B = cfg.actions[j];
+    return (A[0] - A[1]) - (B[0] - B[1]) || (A[0] + A[1]) - (B[0] + B[1]);
+  });
+  const curState = w.cur && w.last ? w.last.next : null;
+  const head1 = h('tr', {}, h('th', { class: 'rowh' }, 'State'), ...order.map(i => h('th', { title: `action #${i}` }, 'L' + cfg.actions[i][0])), h('th', {}, ''));
+  const head2 = h('tr', {}, h('th', { class: 'rowh muted' }, 'heading zone'), ...order.map(i => h('th', { title: `action #${i}` }, 'R' + cfg.actions[i][1])), h('th', { style: { textAlign: 'left', paddingLeft: '10px' } }, 'Best action'));
+  const rows = cfg.states.map((stv, si) => {
+    const row = q[si] || [];
+    const max = Math.max(...row), untried = row.every(v => v === 0);
+    const bestI = untried ? -1 : row.indexOf(max);
+    const cells = order.map(ai => {
+      const v = row[ai] || 0, c = qColor(v, maxAbs);
+      const flash = w.lastUpdated && w.lastUpdated.si === si && w.lastUpdated.ai === ai && w.lastUpdated.seq > store.seq - 3;
+      const td = h('td', { class: (ai === bestI ? 'best ' : '') + (flash ? 'flash' : ''), style: { background: c.bg, color: c.fg } }, v === 0 ? '0' : fmt(v, 1));
+      td.addEventListener('pointermove', e => showTip(e, `State ${stv > 0 ? '+' + stv : stv} · action #${ai}`,
+        [{ k: 'Legs', v: `L${cfg.actions[ai][0]} R${cfg.actions[ai][1]}` }, { k: 'Q-value', v: fmt(v, 2) }]));
+      td.addEventListener('pointerleave', hideTip);
+      return td;
+    });
+    const label = h('td', { class: 'rowh' }, h('b', {}, stv > 0 ? '+' + stv : String(stv).replace('-', MINUS)), ' ', h('span', { class: 'muted' }, walkerStateLabel(cfg, stv)));
+    const best = bestI < 0 ? h('td', { class: 'bestcol muted' }, 'not tried yet')
+      : h('td', { class: 'bestcol' }, miniLegs(cfg, cfg.actions[bestI]), ` L${cfg.actions[bestI][0]} R${cfg.actions[bestI][1]}`);
+    return h('tr', { class: stv === curState ? 'current' : '' }, label, ...cells, best);
+  });
+  tbl.replaceChildren(h('thead', {}, head1, head2), h('tbody', {}, rows));
+  legendKeys($('#legendWalkerQ'), [
+    { type: 'ramp', color: rampCSS(), label: 'bad ← 0 → good' },
+    { type: 'glyph', glyph: '▢', color: 'var(--ink)', label: 'best action for that state' },
+    { type: 'glyph', glyph: '', color: 'var(--ink)', label: placeholder ? 'Example layout. Your Q-table appears when the program runs.' : `${cfg.states.length} states × ${cfg.actions.length} actions = ${cfg.states.length * cfg.actions.length} Q-values` },
+  ]);
+}
+function miniLegs(cfg, a) {
+  const max = Math.max(1, ...cfg.speeds);
+  const s = sv('svg', { width: 22, height: 16, viewBox: '0 0 22 16', style: 'display:inline-block;vertical-align:-3px' });
+  sv('rect', { x: 2, y: 16 - 14 * a[0] / max, width: 7, height: 14 * a[0] / max + 0.01, rx: 1.5, fill: 'var(--train)' }, s);
+  sv('rect', { x: 13, y: 16 - 14 * a[1] / max, width: 7, height: 14 * a[1] / max + 0.01, rx: 1.5, fill: 'var(--train)' }, s);
+  return s;
+}
+
+/* =====================================================================
+   RENDER SCHEDULER
+   ===================================================================== */
+let renderQueued = false;
+let bulkLoading = false;
+notify = function (part, info) {
+  if (part === 'truncated') {
+    if (!ui.warnedTruncated) {
+      ui.warnedTruncated = true;
+      sys(`A data line from the hub arrived cut off (after ${info} characters): the hub shortens long printed lines. `
+        + 'The dashboard works around it, but use the latest .py files, which keep every line short.', true);
+    }
+    return;
+  }
+  if (part === 'app' && store.app && store.app !== ui.view) { setView(store.app); return; }
+  if (bulkLoading) return;
+  if (!renderQueued) { renderQueued = true; requestAnimationFrame(() => { renderQueued = false; renderAll(); }); }
+};
+function renderAll() {
+  try {
+    renderConn();
+    renderNow();
+    if (ui.view === 'search') renderSearch(); else renderWalker();
+  } catch (e) { console.error(e); }
+}
+
+/* =====================================================================
+   CONSOLE + LOG
+   ===================================================================== */
+const consoleEl = $('#console');
+const logLines = [];
+const MAX_CONSOLE = 2500;
+function consoleAppend(text, cls) {
+  const div = document.createElement('div');
+  div.className = cls; div.textContent = text;
+  consoleEl.appendChild(div);
+  while (consoleEl.childElementCount > MAX_CONSOLE) consoleEl.firstElementChild.remove();
+  if ($('#autoScroll').checked) consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+function lineClass(line) {
+  if (line.startsWith('@')) return 'l-data';
+  if (line.startsWith('>> ')) return 'l-prompt';
+  if (/^(Traceback|\s+File "|[A-Za-z]*Error\b|SETUP PROBLEM)/.test(line)) return 'l-err';
+  return '';
+}
+/** Every line from the hub (or the demo) comes through here. */
+function ingest(line) {
+  logLines.push(line);
+  if (logLines.length > 100000) logLines.splice(0, 20000);
+  consoleAppend(line, lineClass(line));
+  handleLine(line);
+}
+function sys(text, isErr) {
+  const stamp = new Date().toLocaleTimeString();
+  consoleAppend(`• ${text}`, isErr ? 'l-err' : 'l-sys');
+  logLines.push(`# [${stamp}] ${text}`);
+}
+
+$('#showData').addEventListener('change', e => consoleEl.classList.toggle('hide-data', !e.target.checked));
+$('#btnClear').addEventListener('click', () => { consoleEl.replaceChildren(); });
+$('#btnSave').addEventListener('click', () => {
+  const blob = new Blob([logLines.join('\n') + '\n'], { type: 'text/plain' });
+  const a = document.createElement('a');
+  const d = new Date(), pad = n => String(n).padStart(2, '0');
+  a.download = `spike-rl-${store.app || ui.view}-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.txt`;
+  a.href = URL.createObjectURL(blob);
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+$('#btnLoad').addEventListener('click', () => $('#fileLoad').click());
+$('#fileLoad').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const text = await f.text();
+  e.target.value = '';
+  loadLog(text, f.name);
+});
+function loadLog(text, name) {
+  if (ui.conn === 'demo') stopDemo();
+  resetStore();
+  consoleEl.replaceChildren();
+  logLines.length = 0;
+  bulkLoading = true;
+  for (const raw of text.split(/\r?\n/)) {
+    if (raw.startsWith('# [')) { logLines.push(raw); continue; }
+    logLines.push(raw);
+    handleLine(raw);
+  }
+  bulkLoading = false;
+  logLines.slice(-MAX_CONSOLE).forEach(l => consoleAppend(l, lineClass(l)));
+  sys(`Opened log "${name}" (${logLines.length} lines).`);
+  if (store.app) ui.view = store.app;
+  setView(ui.view);
+}
+
+/* =====================================================================
+   CONNECTING TO THE HUB
+   ===================================================================== */
+const LEGO_USB_VENDOR = 0x0694;
+const BLE_SERVICE = '0000fd02-0000-1000-8000-00805f9b34fb';
+const BLE_RX = '0000fd02-0001-1000-8000-00805f9b34fb';   // write (to hub)
+const BLE_TX = '0000fd02-0002-1000-8000-00805f9b34fb';   // notify (from hub)
+const link = { kind: null, port: null, reader: null, device: null, stream: null };
+
+function onHubMessage(msg) {
+  if (msg[0] === 0x01 && msg.length >= 9) {        // InfoResponse
+    const dv = new DataView(msg.buffer, msg.byteOffset, msg.byteLength);
+    sys(`Hub firmware ${msg[5]}.${msg[6]}.${dv.getUint16(7, true)}`);
+  } else if (msg[0] === 0x20 && msg.length >= 2) { // ProgramFlowNotification
+    sys(msg[1] === 0 ? 'A program started on the hub.' : 'The program on the hub stopped.');
+  }
+}
+
+async function connectUSB(evt) {
+  if (!('serial' in navigator)) return;
+  if (ui.conn === 'demo') stopDemo();
+  const showAll = evt && evt.shiftKey;
+  let port;
+  try {
+    port = await navigator.serial.requestPort(showAll ? {} : { filters: [{ usbVendorId: LEGO_USB_VENDOR }] });
+  } catch (e) { if (e.name !== 'NotFoundError') sys('USB: ' + e.message, true); return; }
+  try {
+    await port.open({ baudRate: 115200 });
+  } catch (e) {
+    sys('Could not open the USB port. Is the SPIKE App (or another tab) still connected to the hub? ' + e.message, true);
+    return;
+  }
+  link.kind = 'usb'; link.port = port;
+  link.stream = new HubStream('auto', ingest, onHubMessage);
+  ui.conn = 'usb'; ui.connName = '';
+  sys('Connected over USB. Waiting for the program to print something…');
+  renderAll();
+  usbReadLoop(port);
+}
+async function usbReadLoop(port) {
+  while (port.readable && link.port === port) {
+    const reader = port.readable.getReader();
+    link.reader = reader;
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (value && link.stream) link.stream.push(value);
+      }
+    } catch (e) {
+      if (link.port === port) sys('USB read error: ' + e.message, true);
+    } finally {
+      try { reader.releaseLock(); } catch (e) { /* already released */ }
+    }
+    if (link.port !== port) break;
+  }
+  if (link.port === port) disconnect('The USB connection closed.');
+}
+
+async function connectBLE() {
+  if (!('bluetooth' in navigator)) return;
+  if (ui.conn === 'demo') stopDemo();
+  let device;
+  try {
+    device = await navigator.bluetooth.requestDevice({ filters: [{ services: [BLE_SERVICE] }] });
+  } catch (e) { if (e.name !== 'NotFoundError') sys('Bluetooth: ' + e.message, true); return; }
+  try {
+    sys(`Connecting to ${device.name || 'the hub'}…`);
+    device.addEventListener('gattserverdisconnected', () => { if (link.device === device) disconnect('Bluetooth connection lost.'); });
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(BLE_SERVICE);
+    const tx = await service.getCharacteristic(BLE_TX);
+    const rx = await service.getCharacteristic(BLE_RX);
+    link.kind = 'ble'; link.device = device;
+    link.stream = new HubStream('framed', ingest, onHubMessage);
+    tx.addEventListener('characteristicvaluechanged', e => {
+      const v = e.target.value;
+      if (link.stream) link.stream.push(new Uint8Array(v.buffer, v.byteOffset, v.byteLength));
+    });
+    await tx.startNotifications();
+    ui.conn = 'ble'; ui.connName = device.name || 'Bluetooth';
+    sys(`Connected over Bluetooth to ${ui.connName}. Waiting for the program to print something…`);
+    renderAll();
+    // The standard "hello" (InfoRequest) of LEGO's hub protocol. It is answered by the hub's
+    // firmware with its version; nothing is sent to your program.
+    try {
+      const hello = packMessage([0x00]);
+      if (rx.writeValueWithoutResponse) await rx.writeValueWithoutResponse(hello); else await rx.writeValue(hello);
+    } catch (e) { /* not required for receiving output */ }
+  } catch (e) {
+    sys('Bluetooth connection failed: ' + e.message, true);
+    try { device.gatt.disconnect(); } catch (err) { /* ignore */ }
+    link.device = null;
+  }
+}
+
+async function disconnect(reason) {
+  const { port, reader, device } = link;
+  link.kind = null; link.port = null; link.reader = null; link.device = null; link.stream = null;
+  try { if (reader) await reader.cancel(); } catch (e) { /* ignore */ }
+  await new Promise(r => setTimeout(r, 60));
+  try { if (port) await port.close(); } catch (e) { /* ignore */ }
+  try { if (device && device.gatt.connected) device.gatt.disconnect(); } catch (e) { /* ignore */ }
+  if (ui.conn === 'usb' || ui.conn === 'ble') { ui.conn = null; ui.connName = ''; }
+  if (reason) sys(reason);
+  renderAll();
+}
+if ('serial' in navigator) {
+  navigator.serial.addEventListener('disconnect', e => { if (e.target === link.port) disconnect('The hub was unplugged.'); });
+}
+
+/* =====================================================================
+   DEMO: a simulated robot that prints exactly what the hub programs print
+   ===================================================================== */
+const demo = { sim: null, kind: null, speed: 3, queue: [] };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const f2 = x => x.toFixed(2);
+const sgn = n => (n > 0 ? '+' + n : String(n));
+function randInt(n) { return Math.floor(Math.random() * n); }
+function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+class DemoAgent {   // same as QAgent in the Python programs
+  constructor(ns, na, alpha, gamma) { this.alpha = alpha; this.gamma = gamma; this.q = zeros(ns, na); }
+  best(s) { const row = this.q[s], m = Math.max(...row); const ties = row.map((v, i) => (v === m ? i : -1)).filter(i => i >= 0); return ties[randInt(ties.length)]; }
+  choose(s, eps) { if (Math.random() < eps) return [randInt(this.q[s].length), true]; return [this.best(s), false]; }
+  learn(s, a, r, s2, done) {
+    const old = this.q[s][a], bestNext = done ? 0 : Math.max(...this.q[s2]);
+    const nv = old + this.alpha * (r + this.gamma * bestNext - old);
+    this.q[s][a] = nv; return [old, bestNext, nv];
+  }
+}
+
+class SearchSim {
+  constructor() {
+    this.track = ['BLACK', 'MAGENTA', 'BLUE', 'AZURE', 'GREEN', 'YELLOW', 'RED', 'BLACK'];   // the "real" bricks
+    this.goal = 'GREEN'; this.boundary = 'BLACK';
+    this.states = [];                                  // discovered colors = Q-table rows
+    this.alpha = 0.5; this.gamma = 0.9; this.epsilon = 0.1; this.maxSteps = 15;
+    this.agent = new DemoAgent(0, 2, this.alpha, this.gamma);
+    this.episodes = 0; this.runs = 0; this.busy = false; this.stopped = false;
+  }
+  out(l) { if (!this.stopped) ingest(l); }
+  async wait(ms) { await sleep(ms / demo.speed); if (this.stopped) throw new Error('stopped'); }
+  discover(c) {
+    if (c === this.goal || c === this.boundary || this.states.includes(c)) return;
+    this.states.push(c); this.agent.q.push([0, 0]);
+    const n = this.states.length;
+    this.out(`New color discovered: ${c} -> new row in the Q-table (${n === 1 ? '1 state' : n + ' states'} now)`);
+    this.out(`@DISCOVER state=${c} row=${n - 1}`);
+  }
+  config() {
+    return `@CONFIG app=search goal=${this.goal} boundary=${this.boundary} ignore=none actions=LEFT,RIGHT alpha=${f2(this.alpha)} gamma=${f2(this.gamma)} epsilon=${f2(this.epsilon)} max_steps=${this.maxSteps} reward_goal=10 reward_boundary=-10 reward_step=-1`;
+  }
+  emitQ() {
+    this.out(`@QTABLE app=search ep=${this.episodes} states=${this.states.length ? this.states.join(',') : 'none'}`);
+    this.states.forEach((c, i) => this.out(`@QROW app=search state=${c} q=[${this.agent.q[i].map(f2).join(',')}]`));
+  }
+  boot() {
+    ['', '=================================================', '  1D COLOR SEARCH with Reinforcement Learning', '=================================================',
+      `Goal: ${this.goal}    Boundary (both ends): ${this.boundary}`, 'The robot discovers the other brick colors as it explores.',
+      'The Q-table starts empty: each new color adds a row.', '',
+      '  RIGHT button = TRAIN one episode (explore + learn)', '  LEFT button  = TEST what it learned (no random moves, no learning)', ''].forEach(l => this.out(l));
+    this.out('@HELLO app=search version=2'); this.out(this.config()); this.emitQ();
+    this.out('>> Turn the arm by hand so the sensor is over a colored brick. Then press RIGHT to TRAIN or LEFT to TEST.');
+  }
+  rearrange() {
+    if (this.busy) return false;
+    const middle = this.track.slice(1, -1);
+    for (let i = middle.length - 1; i > 0; i--) { const j = randInt(i + 1); [middle[i], middle[j]] = [middle[j], middle[i]]; }
+    this.track = [this.boundary, ...middle, this.boundary];
+    this.out(`(Demo: someone rearranged the bricks. Now: ${this.track.join(' ')}. The robot doesn't know yet!)`);
+    return true;
+  }
+  async press(btn) {
+    if (this.busy) return; this.busy = true;
+    try {
+      const training = btn === 'RIGHT';
+      const starts = this.track.map((c, i) => i).filter(i => this.track[i] !== this.goal && this.track[i] !== this.boundary);
+      let pos = starts[randInt(starts.length)];   // the "student" moves the arm to a random brick
+      this.out(this.config()); this.emitQ();
+      this.runs++; if (training) this.episodes++;
+      const mode = training ? 'train' : 'test', eps = training ? this.epsilon : 0;
+      this.out(training ? `=== TRAINING episode ${this.episodes}: starting on ${this.track[pos]} ===` : `=== TEST run (after ${this.episodes} training episodes): starting on ${this.track[pos]} ===`);
+      this.out(`@START app=search mode=${mode} run=${this.runs} ep=${this.episodes} start=${this.track[pos]} epsilon=${f2(eps)}`);
+      this.discover(this.track[pos]);
+      await this.wait(500);
+      let total = 0, steps = 0, result = 'max_steps';
+      for (let t = 1; t <= this.maxSteps; t++) {
+        const here = this.track[pos], s = this.states.indexOf(here);
+        const [a, explored] = this.agent.choose(s, eps);
+        const act = a === 0 ? 'LEFT' : 'RIGHT';
+        const row = this.agent.q[s];
+        const how = explored ? 'random - exploring!' : row[0] === row[1] ? 'a tie, so picked at random' : 'best move so far';
+        this.out(`@CHOOSE run=${this.runs} t=${t} state=${here} action=${act} explore=${explored ? 'yes' : 'no'} q=[${row.map(f2).join(',')}]`);
+        await this.wait(explored ? 1500 : 1200);
+        pos += a === 0 ? -1 : 1;
+        const next = this.track[pos];
+        const done = next === this.goal || next === this.boundary;
+        const r = next === this.goal ? 10 : next === this.boundary ? -10 : -1;
+        if (!done) this.discover(next);
+        steps = t; total += r;
+        let line = `@STEP run=${this.runs} t=${t} state=${here} action=${act} explore=${explored ? 'yes' : 'no'} next=${next} reward=${r}`;
+        let story = `  step ${t}: on ${here}, chose ${act} (${how}) -> ${next}, reward ${sgn(r)}`;
+        if (training) {
+          const [old, bn, nv] = this.agent.learn(s, a, r, done ? null : this.states.indexOf(next), done);
+          line += ` old=${f2(old)} best_next=${f2(bn)} new=${f2(nv)}`;
+          story += `   Q(${here},${act}): ${f2(old)} -> ${f2(nv)}`;
+        }
+        this.out(story); this.out(line);
+        await this.wait(500);
+        if (done) { result = next === this.goal ? 'goal' : 'boundary'; break; }
+      }
+      this.out(result === 'goal' ? `Found the GOAL in ${steps} step(s)! Total reward: ${sgn(total)}` : result === 'boundary' ? `Hit the boundary after ${steps} step(s). Total reward: ${sgn(total)}` : `Used all ${this.maxSteps} steps without reaching an end. Total reward: ${sgn(total)}`);
+      this.out(`@END app=search mode=${mode} run=${this.runs} ep=${this.episodes} steps=${steps} total=${total} result=${result}`);
+      await this.wait(900);
+      this.emitQ();
+      this.out('>> Move the arm to a new starting brick. Then press RIGHT to TRAIN or LEFT to TEST.');
+    } catch (e) { /* demo stopped */ } finally { this.busy = false; }
+  }
+}
+
+class WalkerSim {
+  constructor() {
+    this.speeds = [0, 300, 750]; this.edges = [5, 20, 40]; this.zoneRewards = [10, -2, -10, -25];
+    this.actions = []; for (const l of this.speeds) for (const r of this.speeds) if (l || r) this.actions.push([l, r]);
+    this.states = [-3, -2, -1, 0, 1, 2, 3];
+    this.alpha = 0.3; this.gamma = 0.9; this.eps = 0.9; this.epsMin = 0.1; this.epsDecay = 0.008;
+    this.agent = new DemoAgent(7, this.actions.length, this.alpha, this.gamma);
+    this.bias = (Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 3);   // this robot naturally curves
+    this.episodes = 0; this.runs = 0; this.busy = false; this.stopped = false;
+  }
+  out(l) { if (!this.stopped) ingest(l); }
+  async wait(ms) { await sleep(ms / demo.speed); if (this.stopped) throw new Error('stopped'); }
+  stateOf(hd) { let z = 0; while (z < this.edges.length && Math.abs(hd) > this.edges[z]) z++; return hd < 0 ? -z : z; }
+  emitConfig() {
+    this.out(`@CONFIG app=walker states=[${this.states}] edges=[${this.edges}] rewards=[${this.states.map(s => this.zoneRewards[Math.abs(s)])}] speeds=[${this.speeds}]`);
+    this.out(`@CONFIG app=walker alpha=${f2(this.alpha)} gamma=${f2(this.gamma)} epsilon_start=0.90 epsilon_min=0.10 epsilon_decay=0.0080 train_steps=20 test_steps=40 step_ms=750 give_up=140`);
+  }
+  emitQ() {
+    this.out(`@QTABLE app=walker ep=${this.episodes} epsilon=${f2(this.eps)} rows=${this.states.length}`);
+    this.states.forEach((st, i) => {
+      const row = this.agent.q[i];
+      for (let k = 0; k < row.length; k += 12) this.out(`@QROW app=walker state=${st} from=${k} q=[${row.slice(k, k + 12).map(f2).join(',')}]`);
+    });
+  }
+  boot() {
+    ['', '=================================================', '  SMART WALKER with Reinforcement Learning', '=================================================',
+      'Goal: learn which leg speeds keep the robot walking STRAIGHT.', `(Demo robot: it naturally curves about ${Math.abs(this.bias).toFixed(0)} degrees per step.)`, '',
+      '  RIGHT button = TRAIN one episode (20 steps, explore + learn)', '  LEFT button  = TEST (40 steps, best actions only, no learning)', ''].forEach(l => this.out(l));
+    this.out('@HELLO app=walker version=1'); this.emitConfig(); this.emitQ();
+    this.out('>> Point the robot at your target and set it down. Then press RIGHT to TRAIN or LEFT to TEST.');
+  }
+  async press(btn) {
+    if (this.busy) return; this.busy = true;
+    try {
+      const training = btn === 'RIGHT';
+      this.emitConfig(); this.emitQ();
+      this.runs++; if (training) this.episodes++;
+      const mode = training ? 'train' : 'test', maxSteps = training ? 20 : 40;
+      this.out(training ? `=== TRAINING episode ${this.episodes} (exploration ${f2(this.eps)}) ===` : `=== TEST run (after ${this.episodes} training episodes) ===`);
+      this.out('Starting in 1.0 seconds - hands off!');
+      await this.wait(1000);
+      let hd = 0;
+      this.out(`@START app=walker mode=${mode} run=${this.runs} ep=${this.episodes} epsilon=${f2(training ? this.eps : 0)} heading=0.0`);
+      let total = 0, steps = 0, result = 'done';
+      for (let t = 1; t <= maxSteps; t++) {
+        const st = this.stateOf(hd), s = st + 3;
+        const [a, explored] = this.agent.choose(s, training ? this.eps : 0);
+        const [l, r] = this.actions[a];
+        await this.wait(750);
+        let nh = hd + 1.5 * (this.bias - 0.03 * (l - r)) + gauss() * (1.5 + 2.5 * (l + r) / 1500);   // 0.75 s step; faster legs = floppier
+        nh = ((nh + 180) % 360 + 360) % 360 - 180;
+        if (Math.abs(nh) > 140) { result = 'turned'; break; }
+        const st2 = this.stateOf(nh), rw = this.zoneRewards[Math.abs(st2)];
+        steps = t; total += rw;
+        const row = this.agent.q[s];
+        const how = explored ? 'random' : row.filter(v => v === row[a]).length > 1 ? 'tie, random' : 'best';
+        let line = `@STEP run=${this.runs} t=${t} heading=${hd.toFixed(1)} state=${st} action=${a} left=${l} right=${r} explore=${explored ? 'yes' : 'no'} next_heading=${nh.toFixed(1)} next=${st2} reward=${rw}`;
+        if (training) {
+          const [old, bn, nv] = this.agent.learn(s, a, rw, st2 + 3, false);
+          this.eps = Math.max(this.epsMin, this.eps - this.epsDecay);
+          line += ` old=${f2(old)} best_next=${f2(bn)} new=${f2(nv)} epsilon=${f2(this.eps)}`;
+        }
+        this.out(`  step ${String(t).padStart(2)}: heading ${String(Math.trunc(hd)).padStart(4)} deg (state ${sgn(st).padStart(2)}) -> legs L${l} R${r} (${how}) -> heading ${String(Math.trunc(nh)).padStart(4)} deg (state ${sgn(st2).padStart(2)}), reward ${sgn(rw)}`);
+        this.out(line);
+        hd = nh;
+      }
+      const avg = steps ? total / steps : 0;
+      this.out(result === 'done' ? `Finished ${steps} steps. Total reward ${sgn(total)}, average ${f2(avg)} per step (10 = perfectly straight).` : `Turned more than 140 degrees - run stopped after ${steps} steps.`);
+      this.out(`@END app=walker mode=${mode} run=${this.runs} ep=${this.episodes} steps=${steps} total=${total} average=${f2(avg)} result=${result}`);
+      await this.wait(1200);
+      this.emitQ();
+      this.out('>> Point the robot at your target and set it down. Then press RIGHT to TRAIN or LEFT to TEST.');
+    } catch (e) { /* demo stopped */ } finally { this.busy = false; }
+  }
+}
+
+function startDemo(kind) {
+  if (ui.conn === 'usb' || ui.conn === 'ble') return;
+  if (demo.sim) demo.sim.stopped = true;
+  demo.queue = [];
+  demo.kind = kind;
+  demo.sim = kind === 'search' ? new SearchSim() : new WalkerSim();
+  ui.conn = 'demo';
+  if (kind === 'search') store.search = newSearchState(); else store.walker = newWalkerState();
+  store.prompt = '';
+  $('#demoShuffle').classList.toggle('hidden', kind !== 'search');
+  $('#demoNote').textContent = kind === 'search'
+    ? 'Simulated arm. It starts each run on a random brick and discovers the colors as it goes.'
+    : `Simulated walker that curves about ${Math.abs(demo.sim.bias).toFixed(0)}° per step.`;
+  sys(`Demo started: ${ACTIVITY_NAMES[kind]}.`);
+  demo.sim.boot();
+  renderAll();
+}
+function stopDemo() {
+  if (demo.sim) demo.sim.stopped = true;
+  demo.sim = null; demo.queue = [];
+  if (ui.conn === 'demo') { ui.conn = null; store.prompt = ''; sys('Demo ended.'); }
+  renderAll();
+}
+async function demoPress(btn, times = 1) {
+  if (!demo.sim) return;
+  const sim = demo.sim;
+  for (let i = 0; i < times; i++) {
+    if (sim.stopped) return;
+    while (sim.busy) { await sleep(100); if (sim.stopped) return; }
+    await sim.press(btn);
+  }
+}
+
+/* =====================================================================
+   WIRING
+   ===================================================================== */
+$('#tabSearch').addEventListener('click', () => setView('search'));
+$('#tabWalker').addEventListener('click', () => setView('walker'));
+$('#btnUSB').addEventListener('click', connectUSB);
+$('#btnBLE').addEventListener('click', connectBLE);
+$('#btnDisconnect').addEventListener('click', () => disconnect('Disconnected.'));
+$('#btnDemo').addEventListener('click', () => startDemo(ui.view));
+$('#demoExit').addEventListener('click', stopDemo);
+$('#demoLeft').addEventListener('click', () => demoPress('LEFT'));
+$('#demoRight').addEventListener('click', () => demoPress('RIGHT'));
+$('#demoTrain5').addEventListener('click', () => demoPress('RIGHT', 5));
+$('#demoShuffle').addEventListener('click', () => { if (demo.sim && demo.sim.rearrange && !demo.sim.rearrange()) sys('Wait for the current run to finish, then rearrange.'); });
+$('#demoSpeed').addEventListener('change', e => { demo.speed = Number(e.target.value) || 1; });
+$('#mirrorToggle').addEventListener('change', e => {
+  ui.mirror = e.target.checked;
+  try { localStorage.setItem('rlspike-mirror', ui.mirror ? '1' : '0'); } catch (err) { /* ignore */ }
+  renderAll();
+});
+document.querySelectorAll('[data-table-toggle]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const id = btn.getAttribute('data-table-toggle');
+    const chart = $('#' + id), table = $('#' + id + 'Table');
+    const showTable = table.classList.contains('hidden');
+    table.classList.toggle('hidden', !showTable); chart.classList.toggle('hidden', showTable);
+    btn.textContent = showTable ? 'Show chart' : 'Show table';
+    if (!showTable) renderAll();
+  });
+});
+$('#btnTheme').addEventListener('click', () => {
+  const root = document.documentElement;
+  const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  root.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('rlspike-theme', root.dataset.theme); } catch (e) { /* ignore */ }
+  ui.trackBuiltKey = null; ui.dialBuiltKey = null;
+  renderAll();
+});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { ui.trackBuiltKey = null; ui.dialBuiltKey = null; renderAll(); });
+let resizeTimer = null;
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderAll, 150); });
+
+function checkSupport() {
+  const banner = $('#supportBanner');
+  const noSerial = !('serial' in navigator), noBLE = !('bluetooth' in navigator);
+  $('#btnUSB').disabled = noSerial;
+  $('#btnBLE').disabled = noBLE;
+  if (noSerial) $('#btnUSB').title = 'This browser cannot use USB serial. Use Chrome or Edge on a computer.';
+  if (noBLE) $('#btnBLE').title = 'This browser cannot use Bluetooth. Use Chrome or Edge on a computer.';
+  if (noSerial && noBLE) {
+    banner.className = 'banner info';
+    banner.replaceChildren(h('div', {}, h('b', {}, 'This browser can’t connect to the hub. '),
+      window.isSecureContext ? 'Open this page in Chrome or Edge on a laptop or desktop computer.'
+        : 'Open this page from a file on your computer or from an https:// address, in Chrome or Edge.',
+      ' You can still try the demo or open a saved log.'));
+  }
+}
+
+(function init() {
+  try {
+    const t = localStorage.getItem('rlspike-theme'); if (t) document.documentElement.dataset.theme = t;
+    ui.mirror = localStorage.getItem('rlspike-mirror') === '1';
+  } catch (e) { /* storage unavailable */ }
+  $('#mirrorToggle').checked = ui.mirror;
+  checkSupport();
+  // Optional: index.html#demo=search&train=5&speed=10 starts a demo right away
+  // (add &shuffle&retrain=5 to rearrange the demo bricks afterwards and keep training)
+  const params = new URLSearchParams(location.hash.slice(1));
+  const want = params.get('demo');
+  const view = params.get('view');
+  setView(want === 'walker' || view === 'walker' ? 'walker' : 'search');
+  if (want === 'search' || want === 'walker') {
+    demo.speed = Number(params.get('speed')) || demo.speed;
+    $('#demoSpeed').value = String([1, 3, 10].includes(demo.speed) ? demo.speed : 10);
+    startDemo(want);
+    const n = Number(params.get('train')) || 0, tests = Number(params.get('test')) || 0;
+    const shuffle = params.get('shuffle') !== null, retrain = Number(params.get('retrain')) || 0;
+    (async () => {
+      if (n) await demoPress('RIGHT', n);
+      if (tests) await demoPress('LEFT', tests);
+      if (shuffle && demo.sim && demo.sim.rearrange) { demo.sim.rearrange(); if (retrain) await demoPress('RIGHT', retrain); }
+    })();
+  }
+})();
+</script>
+</body>
+</html>
